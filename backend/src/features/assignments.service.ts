@@ -6,15 +6,21 @@ export const assignmentsService = {
     return res.rows[0] || null;
   },
   async createSubmission(assignmentId: string, userTelegramId: string, fileId: string, fileType: string) {
-    const userRes = await query('SELECT id FROM users WHERE telegram_id = $1', [userTelegramId]);
+    const userRes = await query('SELECT id, coins FROM users WHERE telegram_id = $1', [userTelegramId]);
     const user = userRes.rows[0];
     if (!user) throw new Error('User not found');
 
-    // price could be dynamic; for now read from assignment.reward_coins or fixed price
-    const price = 10; // TODO: move to config
+    const price = Number(process.env.ASSIGNMENT_PRICE || 10);
 
     await query('BEGIN');
     try {
+      // re-check balance in tx
+      const fresh = await query('SELECT id, coins FROM users WHERE id = $1 FOR UPDATE', [user.id]);
+      const coins = fresh.rows[0].coins || 0;
+      if (coins < price) {
+        throw new Error('INSUFFICIENT_FUNDS');
+      }
+
       const ins = await query(
         'INSERT INTO assignment_submissions (assignment_id, user_id, file_id, file_type, status) VALUES ($1, $2, $3, $4, $5) RETURNING *',
         [assignmentId, user.id, fileId, fileType, 'pending']
@@ -23,7 +29,7 @@ export const assignmentsService = {
       await query('UPDATE users SET coins = coins - $1 WHERE id = $2', [price, user.id]);
       await query(
         'INSERT INTO wallet_transactions (user_id, type, amount, source, meta) VALUES ($1, $2, $3, $4, $5)',
-        [user.id, 'debit', price, 'assignment_submission', { assignmentId }]
+        [user.id, 'debit', price, 'assignment_submission', JSON.stringify({ assignmentId })]
       );
 
       await query('COMMIT');

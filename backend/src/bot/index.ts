@@ -14,19 +14,18 @@ bot.catch(err => {
 
 bot.command('start', async ctx => {
   const rawUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-  const url = rawUrl.replace(/\/+$/, '');
-  const isHttps = url.startsWith('https://');
+  const baseUrl = rawUrl.replace(/\/+$/, '');
+  const isHttps = baseUrl.startsWith('https://');
+  const buttons = [
+    [{ text: 'Открыть', web_app: isHttps ? { url: baseUrl } : undefined, url: isHttps ? undefined : baseUrl }],
+    [{ text: 'Курсы', url: `${baseUrl}/?tab=courses` }],
+    [{ text: 'Мой прогресс', url: `${baseUrl}/?tab=progress` }],
+    [{ text: 'Задания 2-й части', url: `${baseUrl}/?tab=assignments` }],
+  ];
   try {
-    if (isHttps) {
-      await ctx.reply('🔗 Открыть Mini App', {
-        reply_markup: { inline_keyboard: [[{ text: 'Открыть', web_app: { url } }]] },
-      });
-    } else {
-      await ctx.reply('Внимание: Web App требует HTTPS. Пок�� используется не-HTTPS URL.');
-      await ctx.reply('Открыть Mini App в браузере', {
-        reply_markup: { inline_keyboard: [[{ text: 'Открыть в браузере', url }]] },
-      });
-    }
+    await ctx.reply('🔗 Mini App и быстрые ссылки', {
+      reply_markup: { inline_keyboard: buttons as any },
+    });
   } catch (e) { console.error('Failed to send start message', e); }
 });
 
@@ -43,10 +42,48 @@ bot.on(['message:photo','message:document'], async (ctx: Context) => {
   const file = (ctx.msg as any)?.document || (ctx.msg as any)?.photo?.slice(-1)[0];
   const fileId = file?.file_id;
   const fileType = (ctx.msg as any)?.document ? 'document' : 'photo';
+  const userTelegramId = String(ctx.from?.id || '');
 
   if (!fileId) return ctx.reply('Не удалось получить файл. Попробуйте ещё раз.');
 
-  await ctx.reply('Работа принята! Она будет зарегистрирована и передана на проверку.');
+  try {
+    // Call backend service via HTTP (optional) or directly import service to register submission.
+    const { assignmentsService } = await import('../features/assignments.service');
+    const { query } = await import('../db');
+
+    // Ensure assignment exists by lesson
+    const aRes = await query('SELECT a.* FROM assignments a WHERE a.lesson_id = $1 LIMIT 1', [lessonId]);
+    if (!aRes.rowCount) return ctx.reply('Задание для этого урока пока не создано.');
+    const assignment = aRes.rows[0];
+
+    // Ensure user exists (auto-register)
+    const uRes = await query('INSERT INTO users (telegram_id, username) VALUES ($1, $2) ON CONFLICT (telegram_id) DO NOTHING RETURNING *', [userTelegramId, ctx.from?.username || null]);
+    let user = uRes.rows[0];
+    if (!user) {
+      const g = await query('SELECT * FROM users WHERE telegram_id = $1', [userTelegramId]);
+      user = g.rows[0];
+    }
+
+    // Check balance
+    const price = Number(process.env.ASSIGNMENT_PRICE || 10);
+    if ((user.coins || 0) < price) {
+      return ctx.reply(`Недостаточно репкоинов для отправки. Требуется: ${price}. Текущий баланс: ${user.coins}`);
+    }
+
+    // Create submission with atomic debit
+    const submission = await assignmentsService.createSubmission(String(assignment.id), userTelegramId, fileId, fileType);
+
+    await ctx.reply('Работа зарегистрирована и отправлена на проверку.');
+
+    // Notify admin
+    const adminChat = process.env.ADMIN_CHAT_ID;
+    if (adminChat) {
+      await ctx.api.sendMessage(Number(adminChat), `Новая работа #${submission.id} от @${ctx.from?.username || userTelegramId} по уроку ${lessonId}`);
+    }
+  } catch (e) {
+    console.error('Assignment submit failed', e);
+    await ctx.reply('Не удалось зарегистрировать работу. Попробуйте позже.');
+  }
 });
 
 export const initBot = () => {

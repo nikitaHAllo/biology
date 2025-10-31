@@ -24,6 +24,23 @@ router.post('/submissions/:id/review', async (req, res, next) => {
         [id, null, score ?? 0, comment ?? '', checklist ?? null]
       );
       await query('COMMIT');
+
+      // Notify user via bot
+      try {
+        const r = await query(
+          `SELECT u.telegram_id FROM assignment_submissions s
+           JOIN users u ON u.id = s.user_id WHERE s.id = $1`, [id]
+        );
+        const tgId = r.rows[0]?.telegram_id;
+        if (tgId && process.env.BOT_TOKEN) {
+          const { Bot } = await import('grammy');
+          const bot = new Bot(process.env.BOT_TOKEN);
+          await bot.api.sendMessage(Number(tgId), `Результат проверки: ${score ?? 0}/100\nКомментарий: ${comment ?? '—'}`);
+        }
+      } catch (e) {
+        console.error('Failed to notify user about review', e);
+      }
+
       res.json({ ok: true, review: ins.rows[0] });
     } catch (e) {
       await query('ROLLBACK');

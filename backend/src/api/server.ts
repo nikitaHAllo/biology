@@ -8,6 +8,7 @@ import { tasksRouter } from './routes/tasks';
 import { progressRouter } from './routes/progress';
 import { assignmentsRouter } from './routes/assignments';
 import { adminRouter } from './routes/admin';
+import { metaRouter } from './routes/meta';
 import { query } from '../db/index';
 import { errorHandler } from './middleware/error';
 
@@ -27,6 +28,7 @@ app.use('/api/tasks', tasksRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/assignments', assignmentsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/meta', metaRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK' });
