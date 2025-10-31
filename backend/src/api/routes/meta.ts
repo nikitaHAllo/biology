@@ -1,15 +1,13 @@
-import express from 'express';
+// src/bot/commands/meta.ts
+import { Context } from 'grammy';
 
-const router = express.Router();
+export async function botHealth(ctx: Context) {
+	if (process.env.BOT_TOKEN)
+		return ctx.reply('Бот запущен и готов к работе ✅');
+	return ctx.reply('BOT_TOKEN не настроен ❌');
+}
 
-router.get('/config', (req, res) => {
-  const price = Number(process.env.ASSIGNMENT_PRICE || 10);
-  res.json({ assignmentPrice: price });
-});
-
-router.get('/bot', (req, res) => {
-  // simple readiness flag based on env presence
-  res.json({ bot: !!process.env.BOT_TOKEN ? 'ok' : 'not_configured' });
-});
-
-export const metaRouter = router;
+export async function config(ctx: Context) {
+	const price = Number(process.env.ASSIGNMENT_PRICE || 10);
+	return ctx.reply(`Стоимость отправки задания: ${price} репкоинов`);
+}

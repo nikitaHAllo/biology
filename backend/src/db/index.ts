@@ -1,4 +1,6 @@
-import { Pool } from 'pg';
+import { Pool, QueryResult, QueryResultRow } from 'pg';
+import fs from 'fs';
+import path from 'path';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -11,33 +13,26 @@ if (
 ) {
 	pool = new Pool({ connectionString: process.env.DATABASE_URL });
 } else {
-	console.warn(
-		'DATABASE_URL is not set or is a placeholder — database will not be initialized.'
-	);
+	console.warn('DATABASE_URL is not set — database will not be initialized.');
 }
 
-export const query = async (text: string, params?: any[]) => {
+// Указываем, что T всегда наследует QueryResultRow
+export async function query<T extends QueryResultRow = any>(
+	text: string,
+	params?: any[]
+): Promise<QueryResult<T>> {
 	if (!pool) throw new Error('No database connection configured');
-	return pool.query(text, params);
-};
+	return pool.query<T>(text, params);
+}
 
-export const initDatabase = async () => {
-	if (!pool) {
-		console.warn(
-			'Skipping database initialization because DATABASE_URL is not configured.'
-		);
-		return;
-	}
+export async function initDatabase() {
+	if (!pool)
+		return console.warn('Skipping DB init: DATABASE_URL not configured');
 
-	const create = `
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      telegram_id BIGINT UNIQUE NOT NULL,
-      username TEXT,
-      coins INT DEFAULT 0
-    );
-  `;
-
-	await pool.query(create);
-	console.log('Database initialized (users table checked/created)');
-};
+	const initSql = fs.readFileSync(
+		path.join(__dirname, 'migrations', '000_init.sql'),
+		'utf8'
+	);
+	await pool.query(initSql);
+	console.log('Database schema initialized.');
+}

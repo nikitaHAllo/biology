@@ -1,14 +1,18 @@
-import express from 'express';
+// src/bot/commands/progress.ts
+import { Context } from 'grammy';
 import { usersService } from '../../features/users.service';
 
-const router = express.Router();
+export async function progressCommand(ctx: Context) {
+	const tgId = String(ctx.from?.id || '');
+	if (!tgId) return ctx.reply('Не удалось определить ваш Telegram ID');
 
-router.get('/:telegram_id', async (req, res, next) => {
-  try {
-    const data = await usersService.profile(req.params.telegram_id);
-    if (!data) return res.status(404).json({ error: 'Not found' });
-    res.json(data);
-  } catch (e) { next(e as Error); }
-});
+	const profile = await usersService.profile(tgId);
+	if (!profile)
+		return ctx.reply('Профиль не найден. Зарегистрируйтесь через /start');
 
-export const progressRouter = router;
+	const completed = profile.progress.completedLessons ?? 0;
+	const coins = profile.coins ?? 0;
+	return ctx.reply(
+		`Прогресс: ${completed} уроков завершено\nРепкоины: ${coins}`
+	);
+}

@@ -1,39 +1,30 @@
-import express from 'express';
+// src/bot/commands/users.ts
+import { Context } from 'grammy';
 import { usersService } from '../../features/users.service';
 
-const router = express.Router();
+export async function registerUser(ctx: Context) {
+	const tgId = String(ctx.from?.id || '');
+	const username = ctx.from?.username || null;
 
-router.post('/register', async (req, res, next) => {
-  try {
-    const { telegram_id, username } = req.body;
-    if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
-    const user = await usersService.registerOrUpdate(telegram_id, username);
-    res.json(user);
-  } catch (e) { next(e as Error); }
-});
+	if (!tgId) return ctx.reply('Не удалось определить ваш Telegram ID');
 
-router.get('/:telegram_id', async (req, res, next) => {
-  try {
-    const user = await usersService.getByTelegramId(req.params.telegram_id);
-    if (!user) return res.status(404).json({ error: 'Not found' });
-    res.json(user);
-  } catch (e) { next(e as Error); }
-});
+	const user = await usersService.registerOrUpdate(tgId, username ?? undefined);
 
-router.post('/:telegram_id/coins', async (req, res, next) => {
-  try {
-    const result = await usersService.adjustCoins(req.params.telegram_id, Number(req.body.delta || 0));
-    if (!result) return res.status(404).json({ error: 'Not found' });
-    res.json(result);
-  } catch (e) { next(e as Error); }
-});
+	await ctx.reply(`Вы зарегистрированы. Ваш ID: ${tgId}`);
+	return user;
+}
 
-router.get('/:telegram_id/profile', async (req, res, next) => {
-  try {
-    const data = await usersService.profile(req.params.telegram_id);
-    if (!data) return res.status(404).json({ error: 'Not found' });
-    res.json(data);
-  } catch (e) { next(e as Error); }
-});
+export async function showProfile(ctx: Context) {
+	const tgId = String(ctx.from?.id || '');
+	const profile = await usersService.profile(tgId);
+	if (!profile)
+		return ctx.reply(
+			'Профиль не найден. Зарегистрируйтесь через /start или Mini App'
+		);
 
-export const usersRouter = router;
+	const completed = profile.progress.completedLessons ?? 0;
+	const coins = profile.coins ?? 0;
+	await ctx.reply(
+		`Прогресс: ${completed} уроков завершено\nРепкоины: ${coins}`
+	);
+}
