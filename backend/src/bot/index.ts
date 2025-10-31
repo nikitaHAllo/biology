@@ -7,7 +7,7 @@ import { query } from '../db';
 
 dotenv.config();
 
-// Расширяем Context для TS, если нужно добавить свои поля
+// Расширяем Context (если нужно добавить свои поля)
 interface MyContext extends Context {}
 
 const bot = new Bot<MyContext>(process.env.BOT_TOKEN || '');
@@ -65,7 +65,6 @@ bot.on(['message:photo', 'message:document'], async ctx => {
 	if (!fileId) return ctx.reply('Не удалось получить файл.');
 
 	try {
-		// Проверка задания
 		const aRes = await query(
 			'SELECT a.* FROM assignments a WHERE a.lesson_id = $1 LIMIT 1',
 			[lessonId]
@@ -73,7 +72,6 @@ bot.on(['message:photo', 'message:document'], async ctx => {
 		if (!aRes.rowCount) return ctx.reply('Задание для этого урока не создано.');
 		const assignment = aRes.rows[0];
 
-		// Авт-регистрация пользователя
 		const uRes = await query(
 			'INSERT INTO users (telegram_id, username) VALUES ($1, $2) ON CONFLICT (telegram_id) DO NOTHING RETURNING *',
 			[userTelegramId, ctx.from?.username || null]
@@ -86,7 +84,6 @@ bot.on(['message:photo', 'message:document'], async ctx => {
 			user = g.rows[0];
 		}
 
-		// Проверка баланса
 		const price = Number(process.env.ASSIGNMENT_PRICE || 10);
 		if ((user.coins || 0) < price) {
 			return ctx.reply(
@@ -94,7 +91,6 @@ bot.on(['message:photo', 'message:document'], async ctx => {
 			);
 		}
 
-		// Создание submission
 		const submission = await assignmentsService.createSubmission(
 			String(assignment.id),
 			userTelegramId,
@@ -104,7 +100,6 @@ bot.on(['message:photo', 'message:document'], async ctx => {
 
 		await ctx.reply('Работа зарегистрирована и отправлена на проверку.');
 
-		// Уведомление админа
 		const adminChat = process.env.ADMIN_CHAT_ID;
 		if (adminChat) {
 			await ctx.api.sendMessage(
@@ -120,10 +115,12 @@ bot.on(['message:photo', 'message:document'], async ctx => {
 	}
 });
 
-// Экспорт функции для старта бота
-export const initBot = () => {
+// ⚠️ initBot теперь реально запускает polling
+export const initBot = (): Bot<MyContext> => {
 	bot.start();
-	console.log('Bot started successfully');
+	console.log('🤖 Bot started in polling mode');
+	return bot;
 };
 
+// Экспортируем bot для webhook или server.ts
 export { bot };
