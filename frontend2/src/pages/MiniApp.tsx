@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { api } from '../api';
+// import { api } from '../api';
 
 const MiniApp: React.FC = () => {
 	const [telegramId, setTelegramId] = useState('');
 	const [username, setUsername] = useState('');
-	const [result, setResult] = useState<any>(null);
+	// const [result, setResult] = useState(null);
 
-	const register = async () => {
-		try {
-			const res = await api.registerUser({ telegram_id: telegramId, username });
-			setResult(res.data);
-		} catch (err: any) {
-			setResult({ error: err.message });
-		}
-	};
+	// const register = async () => {
+	// 	try {
+	// 		const res = await api.registerUser({ telegram_id: telegramId, username });
+	// 		setResult(res.data);
+	// 	} catch {
+	// 		setResult('Ошибка при регистрации пользователя');
+	// 	}
+	// };
 
 	return (
 		<div style={{ padding: 20 }}>
@@ -32,13 +32,13 @@ const MiniApp: React.FC = () => {
 					onChange={e => setUsername(e.target.value)}
 				/>
 			</div>
-			<button onClick={register}>Зарегистрироваться / Обновить</button>
+			{/* <button onClick={register}>Зарегистрироваться / Обновить</button> */}
 
-			{result && (
+			{/* {result && (
 				<pre style={{ marginTop: 12, background: '#f5f5f5', padding: 8 }}>
 					{JSON.stringify(result, null, 2)}
 				</pre>
-			)}
+			)} */}
 		</div>
 	);
 };

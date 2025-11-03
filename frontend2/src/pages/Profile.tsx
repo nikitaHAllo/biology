@@ -5,7 +5,7 @@ const Profile: React.FC = () => {
 		<div className='profile'>
 			<h1>Профиль</h1>
 			<div className='profile-info'>
-				{/* Здесь будет информация о пользователе */}
+				<p>Здесь будет информация о пользователе</p>
 			</div>
 		</div>
 	);
