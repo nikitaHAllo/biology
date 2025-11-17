@@ -1,12 +1,39 @@
 import { Context } from 'grammy';
 
 export async function helpCommand(ctx: Context): Promise<void> {
-	const message = `
-Команды:
-/start — открыть Mini App
-/progress — показать ваш прогресс и баланс
-/help — помощь
-  `.trim();
+	const helpMessage = `❓ Помощь по боту
 
-	await ctx.reply(message);
+📋 Основные команды:
+/start - Начало работы и регистрация
+/progress - Ваш прогресс обучения  
+/help - Эта справка
+
+🎯 Быстрые кнопки:
+• "Открыть учебный центр" - полный доступ ко всем материалам
+• "Курсы" - просмотр доступных курсов
+• "Прогресс" - ваша статистика
+• "Викторины" - интерактивные тесты
+• "Задания" - задания 2-й части
+• "Мои репкоины" - баланс валюты
+
+📎 Как работать с заданиями:
+Отправьте фото или документ с подписью: assignment:номер_урока
+
+💬 По вопросам и проблемам:
+Обращайтесь к администратору.`;
+
+	await ctx.reply(helpMessage, {
+		reply_markup: {
+			inline_keyboard: [
+				[
+					{
+						text: '🚀 Открыть учебный центр',
+						web_app: {
+							url: process.env.FRONTEND_URL || 'http://localhost:3000',
+						},
+					},
+				],
+			],
+		},
+	});
 }

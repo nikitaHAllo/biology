@@ -2,12 +2,11 @@ import { Bot, Context } from 'grammy';
 import dotenv from 'dotenv';
 import { progressCommand } from './commands/progress';
 import { helpCommand } from './commands/help';
-import { assignmentsService } from '../features/assignments.service';
-import { query } from '../db';
+import { User } from '../models';
+import { startCommand } from './commands/start';
 
 dotenv.config();
 
-// Расширяем Context (если нужно добавить свои поля)
 interface MyContext extends Context {}
 
 const bot = new Bot<MyContext>(process.env.BOT_TOKEN || '');
@@ -17,103 +16,67 @@ bot.catch(err => {
 	console.error('BotError', err);
 });
 
-// Команда /start
-bot.command('start', async ctx => {
-	const rawUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-	const baseUrl = rawUrl.replace(/\/+$/, '');
-	const isHttps = baseUrl.startsWith('https://');
+// Обработчики callback-кнопок
+bot.on('callback_query', async ctx => {
+	const callbackData = ctx.callbackQuery?.data;
 
-	const buttons = [
-		[
-			{
-				text: 'Открыть',
-				web_app: isHttps ? { url: baseUrl } : undefined,
-				url: isHttps ? undefined : baseUrl,
-			},
-		],
-		[{ text: 'Курсы', url: `${baseUrl}/?tab=courses` }],
-		[{ text: 'Мой прогресс', url: `${baseUrl}/?tab=progress` }],
-		[{ text: 'Задания 2-й части', url: `${baseUrl}/?tab=assignments` }],
-	];
+	switch (callbackData) {
+		case 'show_coins':
+			await ctx.answerCallbackQuery();
+			try {
+				const user = await User.findOne({
+					where: { telegram_id: ctx.from?.id },
+				});
+				const coins = user?.get('coins') || 0;
+				await ctx.reply(`💰 На вашем счету: *${coins} репкоинов*`, {
+					parse_mode: 'Markdown',
+				});
+			} catch (error) {
+				await ctx.reply('❌ Не удалось получить информацию о репкоинах');
+			}
+			break;
 
-	try {
-		await ctx.reply('🔗 Mini App и быстрые ссылки', {
-			reply_markup: { inline_keyboard: buttons as any },
-		});
-	} catch (e) {
-		console.error('Failed to send start message', e);
+		case 'show_progress':
+			await ctx.answerCallbackQuery();
+			await progressCommand(ctx);
+			break;
+
+		case 'show_help':
+			await ctx.answerCallbackQuery();
+			await helpCommand(ctx);
+			break;
+
+		case 'show_courses':
+			await ctx.answerCallbackQuery();
+			await ctx.reply(
+				'📚 Переходи в учебный центр чтобы увидеть все доступные курсы!'
+			);
+			break;
+
+		case 'show_quizzes':
+			await ctx.answerCallbackQuery();
+			await ctx.reply(
+				'🎯 Викторины доступны в учебном центре! Нажми "Открыть учебный центр" чтобы начать тренироваться.'
+			);
+			break;
+
+		case 'show_assignments':
+			await ctx.answerCallbackQuery();
+			await ctx.reply(
+				'🔬 Для работы с заданиями 2-й части перейди в учебный центр → раздел "Задания".'
+			);
+			break;
+
+		default:
+			await ctx.answerCallbackQuery();
+			break;
 	}
 });
 
 // Команды /progress и /help
+bot.command('start', startCommand);
 bot.command('progress', progressCommand);
 bot.command('help', helpCommand);
-
-// Обработчик фото/документов для заданий
-bot.on(['message:photo', 'message:document'], async ctx => {
-	const caption = ctx.msg?.caption || '';
-	const match = caption.match(/assignment:(\d+)/i);
-	if (!match) return ctx.reply('Добавьте подпись вида: assignment:<lessonId>');
-
-	const lessonId = match[1];
-	const file =
-		(ctx.msg as any)?.document || (ctx.msg as any)?.photo?.slice(-1)[0];
-	const fileId = file?.file_id;
-	const fileType = (ctx.msg as any)?.document ? 'document' : 'photo';
-	const userTelegramId = String(ctx.from?.id || '');
-
-	if (!fileId) return ctx.reply('Не удалось получить файл.');
-
-	try {
-		const aRes = await query(
-			'SELECT a.* FROM assignments a WHERE a.lesson_id = $1 LIMIT 1',
-			[lessonId]
-		);
-		if (!aRes.rowCount) return ctx.reply('Задание для этого урока не создано.');
-		const assignment = aRes.rows[0];
-
-		const uRes = await query(
-			'INSERT INTO users (telegram_id, username) VALUES ($1, $2) ON CONFLICT (telegram_id) DO NOTHING RETURNING *',
-			[userTelegramId, ctx.from?.username || null]
-		);
-		let user = uRes.rows[0];
-		if (!user) {
-			const g = await query('SELECT * FROM users WHERE telegram_id = $1', [
-				userTelegramId,
-			]);
-			user = g.rows[0];
-		}
-
-		const price = Number(process.env.ASSIGNMENT_PRICE || 10);
-		if ((user.coins || 0) < price) {
-			return ctx.reply(
-				`Недостаточно репкоинов. Требуется: ${price}, у вас: ${user.coins}`
-			);
-		}
-
-		const submission = await assignmentsService.createSubmission(
-			String(assignment.id),
-			userTelegramId,
-			fileId,
-			fileType
-		);
-
-		await ctx.reply('Работа зарегистрирована и отправлена на проверку.');
-
-		const adminChat = process.env.ADMIN_CHAT_ID;
-		if (adminChat) {
-			await ctx.api.sendMessage(
-				Number(adminChat),
-				`Новая работа #${submission.id} от @${
-					ctx.from?.username || userTelegramId
-				} по уроку ${lessonId}`
-			);
-		}
-	} catch (e) {
-		console.error('Assignment submit failed', e);
-		await ctx.reply('Не удалось зарегистрировать работу. Попробуйте позже.');
-	}
-});
 
 // ⚠️ initBot теперь реально запускает polling
 export const initBot = (): Bot<MyContext> => {
@@ -122,5 +85,4 @@ export const initBot = (): Bot<MyContext> => {
 	return bot;
 };
 
-// Экспортируем bot для webhook или server.ts
 export { bot };

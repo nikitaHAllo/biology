@@ -1,6 +1,6 @@
 import { app } from './api/server';
 import { initBot } from './bot/index';
-import { initDatabase } from './db/index';
+import { initDatabase } from './db/init';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -14,13 +14,13 @@ async function main() {
 
 		// Запуск сервера
 		app.listen(PORT, () => {
-			console.log(`Server is running on port ${PORT}`);
+			console.log(`🚀 Server is running on port ${PORT}`);
 		});
 
 		// Запуск бота
 		initBot();
 	} catch (err) {
-		console.error('Failed to initialize database', err);
+		console.error('❌ Failed to initialize application', err);
 		process.exit(1);
 	}
 }
