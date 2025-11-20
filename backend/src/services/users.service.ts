@@ -14,7 +14,7 @@ export class UsersService {
 	async registerOrUpdateUser(
 		telegramId: number,
 		username?: string
-	): Promise<any> {
+	): Promise<User> {
 		try {
 			// Сначала ищем пользователя
 			let user = await User.findOne({
@@ -96,16 +96,22 @@ export class UsersService {
 	// Альтернативный вариант - с dataValues и явным приведением типа
 	async getUserProfileAlt(telegramId: number): Promise<UserProfile | null> {
 		try {
-			const user = (await User.findOne({
+			const user = await User.findOne({
 				where: { telegram_id: telegramId },
 				attributes: ['id', 'telegram_id', 'username', 'coins', 'created_at'],
-			})) as any;
+			});
 
 			if (!user) {
 				return null;
 			}
 
-			return user.dataValues as UserProfile;
+			return {
+				id: user.get('id'),
+				telegram_id: user.get('telegram_id'),
+				username: user.get('username'),
+				coins: user.get('coins'),
+				created_at: user.get('created_at'),
+			};
 		} catch (error) {
 			console.error('Error getting user profile:', error);
 			throw error;

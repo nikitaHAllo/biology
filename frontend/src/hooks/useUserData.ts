@@ -6,7 +6,7 @@ import type {
     UserStats,
     LessonProgress,
     Achievement,
-} from '../types/models';
+} from '../models';
 
 interface UseUserDataReturn {
 	profile: UserProfile | null;
@@ -47,7 +47,7 @@ export const useUserData = (): UseUserDataReturn => {
 				setStats(statsData);
 				setProgress(progressData);
 				setAchievements(achievementsData);
-			} catch (err) {
+			} catch (err: unknown) {
 				const errorMessage =
 					err instanceof Error
 						? err.message
@@ -74,7 +74,7 @@ export const useUserData = (): UseUserDataReturn => {
 
 			setProfile(profileData);
 			setStats(statsData);
-		} catch (err) {
+		} catch (err: unknown) {
 			console.error('Error refreshing data:', err);
 		} finally {
 			setIsLoading(false);

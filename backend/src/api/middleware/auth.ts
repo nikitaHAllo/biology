@@ -1,6 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../../models';
 
+// Расширяем тип Request для добавления user
+declare global {
+	namespace Express {
+		interface Request {
+			user?: User;
+		}
+	}
+}
+
 export const authenticateUser = async (
 	req: Request,
 	res: Response,
@@ -28,7 +37,7 @@ export const authenticateUser = async (
 		}
 
 		// Добавляем пользователя в запрос
-		(req as any).user = user;
+		req.user = user;
 		next();
 	} catch (error) {
 		console.error('Authentication error:', error);
@@ -53,7 +62,7 @@ export const optionalAuth = async (
 			});
 
 			if (user) {
-				(req as any).user = user;
+				req.user = user;
 			}
 		}
 

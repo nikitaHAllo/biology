@@ -6,8 +6,8 @@ interface TaskAttributes {
 	lesson_id: number;
 	type: 'single' | 'multiple' | 'text';
 	question: string;
-	options: any; // JSONB
-	answer: any; // JSONB
+	options: Record<string, unknown> | null; // JSONB
+	answer: Record<string, unknown> | null; // JSONB
 	reward_coins: number;
 	created_at: Date;
 }
@@ -23,8 +23,8 @@ export class Task
 	public lesson_id!: number;
 	public type!: 'single' | 'multiple' | 'text';
 	public question!: string;
-	public options!: any;
-	public answer!: any;
+	public options!: Record<string, unknown> | null;
+	public answer!: Record<string, unknown> | null;
 	public reward_coins!: number;
 	public created_at!: Date;
 }

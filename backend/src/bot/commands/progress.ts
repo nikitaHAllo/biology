@@ -1,6 +1,12 @@
 import { Context } from 'grammy';
 import { User, UserProgress } from '../../models';
 
+interface UserProgressWithData {
+	status: 'pending' | 'in_progress' | 'completed';
+	lesson_id: number;
+	updated_at: Date;
+}
+
 export async function progressCommand(ctx: Context): Promise<void> {
 	try {
 		const tgId = ctx.from?.id;
@@ -10,7 +16,7 @@ export async function progressCommand(ctx: Context): Promise<void> {
 		}
 
 		// Ищем пользователя с прогрессом
-		const user = (await User.findOne({
+		const user = await User.findOne({
 			where: { telegram_id: tgId },
 			attributes: ['id', 'telegram_id', 'username', 'coins', 'created_at'],
 			include: [
@@ -20,22 +26,30 @@ export async function progressCommand(ctx: Context): Promise<void> {
 					attributes: ['lesson_id', 'status', 'updated_at'],
 				},
 			],
-		})) as any;
+		});
 
-		const userData = user.dataValues;
-		if (!userData) {
+		if (!user) {
 			await ctx.reply(
 				'👋 Профиль не найден. Используйте команду /start для регистрации.'
 			);
 			return;
 		}
 
+		const userData = user.get({ plain: true }) as {
+			id: number;
+			telegram_id: number;
+			username: string | null;
+			coins: number;
+			created_at: Date;
+			progress?: UserProgressWithData[];
+		};
+
 		const userProgress = userData.progress || [];
 		const completedLessons = userProgress.filter(
-			(p: any) => p.status === 'completed'
+			(p) => p.status === 'completed'
 		).length;
 		const inProgressLessons = userProgress.filter(
-			(p: any) => p.status === 'in_progress'
+			(p) => p.status === 'in_progress'
 		).length;
 		const totalLessons = userProgress.length;
 		const coins = userData.coins || 0;

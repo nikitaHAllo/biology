@@ -24,8 +24,7 @@ import {
 } from '@tabler/icons-react';
 import { useTelegram } from '../hooks/useTelegram';
 import { useUserData } from '../hooks/useUserData';
-import type { Achievement } from '../types/models'; // Правильный импорт
-// Правильный импорт
+import type { Achievement } from '../models';
 
 const Profile: React.FC = () => {
 	const { user } = useTelegram();

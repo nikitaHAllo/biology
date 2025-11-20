@@ -11,7 +11,7 @@ import type {
 	CourseProgressResponse,
 	ApiResponse,
 	CourseProgress,
-} from '../types/models';
+} from '../models';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 

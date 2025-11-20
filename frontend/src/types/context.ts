@@ -1,4 +1,4 @@
-import type { TelegramThemeParams, TelegramUser, TelegramWebApp } from "./telegram";
+import type { TelegramThemeParams, TelegramUser, TelegramWebApp } from "../models/telegram";
 
 
 export interface TelegramContextType {

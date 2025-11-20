@@ -7,7 +7,7 @@ interface WalletTransactionAttributes {
 	type: 'credit' | 'debit';
 	amount: number;
 	source: string;
-	meta: any;
+	meta: Record<string, unknown> | null;
 	created_at: Date;
 }
 
@@ -26,7 +26,7 @@ export class WalletTransaction
 	public type!: 'credit' | 'debit';
 	public amount!: number;
 	public source!: string;
-	public meta!: any;
+	public meta!: Record<string, unknown> | null;
 	public created_at!: Date;
 }
 

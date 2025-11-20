@@ -18,6 +18,7 @@ app.use(
 			// Разрешаем все origins или конкретные домены
 			const allowedOrigins = [
 				process.env.FRONTEND_URL,
+				'https://xp4chqd0-5173.euw.devtunnels.ms',
 				'https://glsxnl83-5173.euw.devtunnels.ms',
 				'http://localhost:5173',
 				'http://localhost:3000',
@@ -48,11 +49,12 @@ app.get('/api/health/db', async (_req, res) => {
 		const { sequelize } = await import('../models');
 		await sequelize.authenticate();
 		res.json({ db: 'ok', timestamp: new Date().toISOString() });
-	} catch (err: any) {
+	} catch (err: unknown) {
 		console.error('DB health check failed', err);
+		const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 		res.status(503).json({
 			db: 'down',
-			error: err.message,
+			error: errorMessage,
 			timestamp: new Date().toISOString(),
 		});
 	}

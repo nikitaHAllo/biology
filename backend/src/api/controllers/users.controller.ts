@@ -9,13 +9,50 @@ import {
 	Course,
 } from '../../models';
 
+interface UserProgressWithLesson {
+	lesson_id: number;
+	status: 'pending' | 'in_progress' | 'completed';
+	updated_at: Date;
+	lesson?: {
+		id: number;
+		title: string;
+		course_id: number;
+		course?: {
+			id: number;
+			title: string;
+			description?: string | null;
+		};
+	};
+}
+
+interface UserAchievementWithAchievement {
+	achievement_id: number;
+	awarded_at: Date;
+	achievement?: {
+		id: number;
+		code: string;
+		title: string;
+		description: string | null;
+	};
+}
+
+interface UserWithAssociations {
+	id: number;
+	telegram_id: number;
+	username: string | null;
+	coins: number;
+	created_at: Date;
+	progress?: UserProgressWithLesson[];
+	achievements?: UserAchievementWithAchievement[];
+}
+
 export class UsersController {
 	// Получить профиль пользователя
 	async getProfile(req: Request, res: Response) {
 		try {
 			const { telegramId } = req.params;
 
-			const user = (await User.findOne({
+			const user = await User.findOne({
 				where: { telegram_id: telegramId },
 				attributes: ['id', 'telegram_id', 'username', 'coins', 'created_at'],
 				include: [
@@ -49,7 +86,7 @@ export class UsersController {
 						],
 					},
 				],
-			})) as any;
+			});
 
 			if (!user) {
 				return res.status(404).json({
@@ -58,17 +95,17 @@ export class UsersController {
 				});
 			}
 
-			// Используем dataValues для доступа к данным
-			const userData = user.dataValues;
+			// Используем get({ plain: true }) для получения plain объекта
+			const userData = user.get({ plain: true }) as UserWithAssociations;
 			const userProgress = userData.progress || [];
 			const userAchievements = userData.achievements || [];
 
 			// Статистика прогресса
 			const completedLessons = userProgress.filter(
-				(p: any) => p.status === 'completed'
+				(p) => p.status === 'completed'
 			).length;
 			const inProgressLessons = userProgress.filter(
-				(p: any) => p.status === 'in_progress'
+				(p) => p.status === 'in_progress'
 			).length;
 
 			res.json({
@@ -87,14 +124,14 @@ export class UsersController {
 						total_achievements: userAchievements.length,
 						total_coins: userData.coins,
 					},
-					progress: userProgress.map((p: any) => ({
+					progress: userProgress.map((p) => ({
 						lesson_id: p.lesson_id,
 						lesson_title: p.lesson?.title,
 						course_title: p.lesson?.course?.title,
 						status: p.status,
 						updated_at: p.updated_at,
 					})),
-					achievements: userAchievements.map((a: any) => ({
+					achievements: userAchievements.map((a) => ({
 						code: a.achievement?.code,
 						title: a.achievement?.title,
 						description: a.achievement?.description,
@@ -172,7 +209,7 @@ export class UsersController {
 		try {
 			const { telegramId } = req.params;
 
-			const user = (await User.findOne({
+			const user = await User.findOne({
 				where: { telegram_id: telegramId },
 				include: [
 					{
@@ -194,7 +231,7 @@ export class UsersController {
 						],
 					},
 				],
-			})) as any;
+			});
 
 			if (!user) {
 				return res.status(404).json({
@@ -203,11 +240,25 @@ export class UsersController {
 				});
 			}
 
-			const userData = user.dataValues;
+			const userData = user.get({ plain: true }) as UserWithAssociations;
 			const userProgress = userData.progress || [];
 
 			// Группируем прогресс по курсам
-			const courseProgress = userProgress.reduce((acc: any, progress: any) => {
+			const courseProgress = userProgress.reduce((acc: Record<number, {
+				course_id: number;
+				course_title?: string;
+				course_description?: string | null;
+				total_lessons: number;
+				completed_lessons: number;
+				in_progress_lessons: number;
+				progress_percentage: number;
+				lessons: Array<{
+					lesson_id: number;
+					lesson_title?: string;
+					status: 'pending' | 'in_progress' | 'completed';
+					updated_at: Date;
+				}>;
+			}>, progress: UserProgressWithLesson) => {
 				const courseId = progress.lesson?.course_id;
 				if (!courseId) return acc;
 
@@ -341,8 +392,8 @@ export class UsersController {
 
 			// Создаем Map достижений пользователя
 			const userAchievementsMap = new Map(
-				userAchievements.map((ua: any) => [
-					ua.achievement_id,
+				userAchievements.map((ua) => [
+					ua.get('achievement_id'),
 					ua.get({ plain: true }),
 				])
 			);
@@ -426,7 +477,7 @@ export class UsersController {
 		try {
 			const { telegramId } = req.params;
 
-			const user = (await User.findOne({
+			const user = await User.findOne({
 				where: { telegram_id: telegramId },
 				attributes: ['id', 'telegram_id', 'username', 'coins', 'created_at'],
 				include: [
@@ -441,7 +492,7 @@ export class UsersController {
 						attributes: ['id'],
 					},
 				],
-			})) as any;
+			});
 
 			if (!user) {
 				return res.status(404).json({
@@ -450,12 +501,12 @@ export class UsersController {
 				});
 			}
 
-			const userData = user.dataValues;
+			const userData = user.get({ plain: true }) as UserWithAssociations;
 			const userProgress = userData.progress || [];
 			const userAchievements = userData.achievements || [];
 
 			const completedLessons = userProgress.filter(
-				(p: any) => p.status === 'completed'
+				(p) => p.status === 'completed'
 			).length;
 			const totalLessons = userProgress.length;
 

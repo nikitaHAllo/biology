@@ -7,7 +7,7 @@ interface AssignmentReviewAttributes {
 	reviewer_id: number | null;
 	score: number | null;
 	comment: string | null;
-	checklist: any; // JSONB
+	checklist: Record<string, unknown> | null; // JSONB
 	created_at: Date;
 }
 
@@ -23,7 +23,7 @@ export class AssignmentReview
 	public reviewer_id!: number | null;
 	public score!: number | null;
 	public comment!: string | null;
-	public checklist!: any;
+	public checklist!: Record<string, unknown> | null;
 	public created_at!: Date;
 }
 

@@ -6,7 +6,7 @@ interface AssignmentAttributes {
 	lesson_id: number;
 	title: string;
 	requirements: string | null;
-	answer_elements: any; // JSONB
+	answer_elements: Record<string, unknown> | null; // JSONB
 	created_at: Date;
 }
 
@@ -21,7 +21,7 @@ export class Assignment
 	public lesson_id!: number;
 	public title!: string;
 	public requirements!: string | null;
-	public answer_elements!: any;
+	public answer_elements!: Record<string, unknown> | null;
 	public created_at!: Date;
 }
 

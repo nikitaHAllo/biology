@@ -4,7 +4,7 @@ import type {
 	TelegramUser,
 	TelegramWebApp,
 	TelegramThemeParams,
-} from '../types/telegram';
+} from '../models/telegram';
 import { type TelegramContextType } from '../types/context';
 
 interface TelegramProviderProps {

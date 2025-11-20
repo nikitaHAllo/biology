@@ -27,8 +27,8 @@ declare namespace App {
 		lesson_id: number;
 		type: 'single' | 'multiple' | 'text';
 		question: string;
-		options?: any;
-		answer?: any;
+		options?: Record<string, unknown> | null;
+		answer?: Record<string, unknown> | null;
 		reward_coins?: number;
 	}
 
@@ -37,7 +37,7 @@ declare namespace App {
 		lesson_id: number;
 		title: string;
 		requirements?: string;
-		answer_elements?: any;
+		answer_elements?: Record<string, unknown> | null;
 	}
 
 	interface AssignmentSubmission {

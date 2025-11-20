@@ -44,8 +44,9 @@ export interface TelegramWebApp {
 
 declare global {
 	interface Window {
-		Telegram?: {
+		Telegram: {
 			WebApp: TelegramWebApp;
 		};
 	}
 }
+
