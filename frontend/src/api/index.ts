@@ -11,6 +11,12 @@ import type {
 	CourseProgressResponse,
 	ApiResponse,
 	CourseProgress,
+	MaterialsCatalogResponse,
+	Quiz,
+	QuizzesListResponse,
+	QuizDetailsResponse,
+	TasksListResponse,
+	PurchaseTopicResult,
 } from '../models';
 
 const API_BASE_URL = 'http://localhost:3000/api';
@@ -58,6 +64,48 @@ class ApiService {
 
 	async updateUserProfile(telegramId: number, username: string): Promise<void> {
 		await this.api.patch(`/users/${telegramId}/profile`, { username });
+	}
+
+	async getMaterialsCatalog(telegramId?: number): Promise<MaterialsCatalogResponse> {
+		const response = await this.api.get<ApiResponse<MaterialsCatalogResponse>>(
+			'/materials/catalog',
+			{
+				params: telegramId ? { telegramId } : undefined,
+			}
+		);
+		return response.data.data;
+	}
+
+	async purchaseTopic(
+		telegramId: number,
+		topicId: number
+	): Promise<PurchaseTopicResult> {
+		const response = await this.api.post<ApiResponse<PurchaseTopicResult>>(
+			`/materials/topics/${topicId}/purchase`,
+			{ telegramId }
+		);
+		return response.data.data;
+	}
+
+	async getQuizzesList(): Promise<Quiz[]> {
+		const response = await this.api.get<ApiResponse<QuizzesListResponse>>(
+			'/quizzes'
+		);
+		return response.data.data.quizzes;
+	}
+
+	async getQuizDetails(quizId: number): Promise<Quiz> {
+		const response = await this.api.get<ApiResponse<QuizDetailsResponse>>(
+			`/quizzes/${quizId}`
+		);
+		return response.data.data.quiz;
+	}
+
+	async getDownloadableTasks(): Promise<TasksListResponse> {
+		const response = await this.api.get<ApiResponse<TasksListResponse>>(
+			'/tasks/downloads'
+		);
+		return response.data.data;
 	}
 }
 

@@ -11,6 +11,18 @@ import { UserAchievement } from './UserAchievement';
 import { Assignment } from './Assignment';
 import { AssignmentSubmission } from './AssignmentSubmission';
 import { AssignmentReview } from './AssignmentReview';
+import {
+	MaterialSection,
+	MaterialTopic,
+	MaterialFile,
+} from './Material';
+import { Quiz, QuizQuestion, QuizOption } from './Quiz';
+import {
+	DownloadableTask,
+	TaskCollection,
+	TaskCollectionItem,
+} from './DownloadableTask';
+import { UserMaterialAccess } from './UserMaterialAccess';
 
 // Определение связей - ВАЖНО: правильный порядок и настройки
 User.hasMany(WalletTransaction, { foreignKey: 'user_id', as: 'transactions' });
@@ -75,6 +87,79 @@ AssignmentReview.belongsTo(AssignmentSubmission, {
 	as: 'submission',
 });
 
+MaterialSection.hasMany(MaterialTopic, {
+	foreignKey: 'section_id',
+	as: 'topics',
+});
+MaterialTopic.belongsTo(MaterialSection, {
+	foreignKey: 'section_id',
+	as: 'section',
+});
+
+MaterialTopic.hasMany(MaterialFile, {
+	foreignKey: 'topic_id',
+	as: 'files',
+});
+MaterialFile.belongsTo(MaterialTopic, {
+	foreignKey: 'topic_id',
+	as: 'topic',
+});
+
+User.hasMany(UserMaterialAccess, {
+	foreignKey: 'user_id',
+	as: 'materialAccesses',
+});
+UserMaterialAccess.belongsTo(User, {
+	foreignKey: 'user_id',
+	as: 'user',
+});
+MaterialTopic.hasMany(UserMaterialAccess, {
+	foreignKey: 'topic_id',
+	as: 'accesses',
+});
+UserMaterialAccess.belongsTo(MaterialTopic, {
+	foreignKey: 'topic_id',
+	as: 'topic',
+});
+
+Quiz.hasMany(QuizQuestion, { foreignKey: 'quiz_id', as: 'questions' });
+QuizQuestion.belongsTo(Quiz, { foreignKey: 'quiz_id', as: 'quiz' });
+
+QuizQuestion.hasMany(QuizOption, {
+	foreignKey: 'question_id',
+	as: 'options',
+});
+QuizOption.belongsTo(QuizQuestion, {
+	foreignKey: 'question_id',
+	as: 'question',
+});
+
+TaskCollection.belongsToMany(DownloadableTask, {
+	through: TaskCollectionItem,
+	foreignKey: 'collection_id',
+	otherKey: 'task_id',
+	as: 'tasks',
+});
+DownloadableTask.belongsToMany(TaskCollection, {
+	through: TaskCollectionItem,
+	foreignKey: 'task_id',
+	otherKey: 'collection_id',
+	as: 'collections',
+});
+
+TaskCollection.hasMany(TaskCollectionItem, {
+	foreignKey: 'collection_id',
+	as: 'items',
+});
+TaskCollectionItem.belongsTo(TaskCollection, {
+	foreignKey: 'collection_id',
+	as: 'collection',
+});
+TaskCollectionItem.belongsTo(DownloadableTask, {
+	foreignKey: 'task_id',
+	as: 'task',
+});
+
 export {
 	User,
 	WalletTransaction,
@@ -88,5 +173,15 @@ export {
 	Assignment,
 	AssignmentSubmission,
 	AssignmentReview,
+	MaterialSection,
+	MaterialTopic,
+	MaterialFile,
+	Quiz,
+	QuizQuestion,
+	QuizOption,
+	DownloadableTask,
+	TaskCollection,
+	TaskCollectionItem,
+	UserMaterialAccess,
 	sequelize,
 };

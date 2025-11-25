@@ -52,3 +52,11 @@ export interface PurchaseTopicResponse {
 	remaining_coins: number;
 }
 
+export interface PurchaseTopicResult {
+	topic_id: number;
+	remaining_coins: number;
+	section?: string;
+	title?: string;
+	already_owned?: boolean;
+}
+

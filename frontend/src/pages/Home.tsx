@@ -1,39 +1,317 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-	Container,
-	Card,
-	Avatar,
-	Text,
-	Group,
-	Badge,
-	Progress,
-	Stack,
-	Grid,
-	Title,
-	Skeleton,
+	Accordion,
 	Alert,
+	Badge,
 	Button,
-	RingProgress,
-	Center,
+	Card,
+	Checkbox,
+	Container,
+	Divider,
+	Group,
+	Progress,
+	SegmentedControl,
+	SimpleGrid,
+	Stack,
+	Text,
+	ThemeIcon,
+	Title,
+	Loader,
 } from '@mantine/core';
 import {
+	IconBook2,
 	IconCoin,
-	IconTrophy,
-	IconBook,
-	IconRefresh,
+	IconDownload,
+	IconFileDescription,
+	IconFolder,
+	IconPlayerPlay,
+	IconProgress,
 } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
+import { showNotification } from '@mantine/notifications';
+import { apiService } from '../api';
+import type {
+	SectionWithTopics,
+	TopicWithMaterials,
+} from '../models/material';
+import type {
+	DownloadableTask,
+	TaskCollection,
+	TaskSource,
+} from '../models/task';
+import type { Quiz } from '../models/quiz';
 import { useTelegram } from '../hooks/useTelegram';
 import { useUserData } from '../hooks/useUserData';
-import type { Achievement } from '../models';
+import { isAxiosError } from 'axios';
 
-const Profile: React.FC = () => {
+type SectionWithFullTopics = Omit<SectionWithTopics, 'topics'> & {
+	topics: TopicWithMaterials[];
+};
+
+const fileTypeLabels: Record<string, string> = {
+	pdf: 'PDF',
+	word: 'WORD',
+	zip: 'ZIP',
+	other: 'Файл',
+};
+
+const sourceLabels: Record<TaskSource, string> = {
+	ege: 'ЕГЭ',
+	fipi: 'ФИПИ',
+	other: 'Другое',
+};
+
+const Home: React.FC = () => {
+	const navigate = useNavigate();
 	const { user } = useTelegram();
-	const { profile, stats, achievements, isLoading, error, refreshData } =
-		useUserData();
+	const { refreshData } = useUserData();
+	const [sections, setSections] = useState<SectionWithFullTopics[]>([]);
+	const [featuredQuiz, setFeaturedQuiz] = useState<Quiz | null>(null);
+	const [tasksList, setTasksList] = useState<DownloadableTask[]>([]);
+	const [collections, setCollections] = useState<TaskCollection[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [hasInitializedPurchases, setHasInitializedPurchases] = useState(false);
+	const [purchasedTopics, setPurchasedTopics] = useState<Set<number>>(
+		new Set()
+	);
+	const [taskFilter, setTaskFilter] = useState<'all' | TaskSource>('all');
+	const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
+	const [purchaseLoading, setPurchaseLoading] = useState<number | null>(null);
+
+	useEffect(() => {
+		const loadData = async (): Promise<void> => {
+			try {
+				setIsLoading(true);
+				setError(null);
+				const [catalog, quizzes, tasks] = await Promise.all([
+					apiService.getMaterialsCatalog(user?.id),
+					apiService.getQuizzesList(),
+					apiService.getDownloadableTasks(),
+				]);
+
+				const normalizedSections: SectionWithFullTopics[] = (
+					catalog.sections || []
+				).map(section => ({
+					...section,
+					topics: (section.topics || []) as TopicWithMaterials[],
+				}));
+
+				setSections(normalizedSections);
+				setFeaturedQuiz(quizzes[0] ?? null);
+				setTasksList(tasks.tasks || []);
+				setCollections(tasks.collections || []);
+			} catch (err: unknown) {
+				console.error('Failed to load home data', err);
+				setError('Не удалось загрузить данные. Попробуйте обновить страницу.');
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		loadData().catch(console.error);
+	}, [user?.id]);
+
+	useEffect(() => {
+		if (hasInitializedPurchases || sections.length === 0) {
+			return;
+		}
+
+		const defaults = new Set<number>();
+		sections.forEach(section => {
+			section.topics.forEach(topic => {
+				if (topic.is_purchased) {
+					defaults.add(topic.id);
+				}
+			});
+		});
+
+		setPurchasedTopics(defaults);
+		setHasInitializedPurchases(true);
+	}, [sections, hasInitializedPurchases]);
+
+	const filteredTasks = useMemo(() => {
+		if (taskFilter === 'all') return tasksList;
+		return tasksList.filter(task => task.source === taskFilter);
+	}, [taskFilter, tasksList]);
+
+	const handlePurchase = async (topic: TopicWithMaterials): Promise<void> => {
+		const isUnlocked = purchasedTopics.has(topic.id);
+
+		const openFirstFile = (): void => {
+			const firstFile = topic.files?.[0];
+			if (firstFile?.file_url) {
+				window.open(firstFile.file_url, '_blank', 'noopener,noreferrer');
+			}
+		};
+
+		if (isUnlocked) {
+			openFirstFile();
+			return;
+		}
+
+		if (!user) {
+			showNotification({
+				title: 'Требуется авторизация',
+				message: 'Откройте мини-приложение из Telegram, чтобы покупать материалы.',
+				color: 'yellow',
+			});
+			return;
+		}
+
+		if (purchaseLoading === topic.id) {
+			return;
+		}
+
+		setPurchaseLoading(topic.id);
+		try {
+			await apiService.purchaseTopic(user.id, topic.id);
+			setPurchasedTopics(prev => {
+				const next = new Set(prev);
+				next.add(topic.id);
+				return next;
+			});
+			await refreshData();
+
+			showNotification({
+				title: 'Материал открыт',
+				message: `Тема «${topic.title}» теперь доступна для просмотра.`,
+				icon: <IconCoin size={18} />,
+				color: 'teal',
+			});
+
+			openFirstFile();
+		} catch (err: unknown) {
+			const message = isAxiosError(err)
+				? err.response?.data?.message || err.message
+				: 'Не удалось оформить покупку';
+			showNotification({
+				title: 'Ошибка покупки',
+				message,
+				color: 'red',
+			});
+		} finally {
+			setPurchaseLoading(null);
+		}
+	};
+
+	const toggleTaskSelection = (taskId: number): void => {
+		setSelectedTasks(prev => {
+			const next = new Set(prev);
+			if (next.has(taskId)) {
+				next.delete(taskId);
+			} else {
+				next.add(taskId);
+			}
+			return next;
+		});
+	};
+
+	const handleBulkDownload = (): void => {
+		if (selectedTasks.size === 0) {
+			showNotification({
+				title: 'Выберите задания',
+				message: 'Отметьте хотя бы одно задание, чтобы собрать архив.',
+				color: 'yellow',
+			});
+			return;
+		}
+
+		const selected = tasksList.filter(task => selectedTasks.has(task.id));
+		const totalSize = selected.reduce(
+			(acc, task) => acc + (task.file_size || 0),
+			0
+		);
+
+		showNotification({
+			title: 'Архив формируется',
+			message: `Собрано ${selected.length} файлов (≈ ${totalSize.toFixed(
+				1
+			)} МБ). Ссылка появится в мини-приложении.`,
+			icon: <IconDownload size={18} />,
+			color: 'teal',
+		});
+	};
+
+	const topicCard = (topic: TopicWithMaterials): React.ReactNode => {
+		const isUnlocked = purchasedTopics.has(topic.id);
+
+		return (
+			<Card key={topic.id} withBorder radius='md' padding='lg' shadow='sm'>
+				<Stack gap='xs'>
+					<Group justify='space-between' align='flex-start'>
+						<div>
+							<Text fw={600}>{topic.title}</Text>
+							<Text c='dimmed' size='sm'>
+								{topic.description}
+							</Text>
+						</div>
+						<Badge
+							color={isUnlocked ? 'teal' : 'gray'}
+							leftSection={<IconCoin size={14} />}
+						>
+							{topic.price_repcoins} реп.
+						</Badge>
+					</Group>
+
+					<Button
+						variant={isUnlocked ? 'light' : 'filled'}
+						color={isUnlocked ? 'teal' : 'blue'}
+						onClick={() => {
+							void handlePurchase(topic);
+						}}
+						loading={purchaseLoading === topic.id}
+					>
+						{isUnlocked ? 'Открыть' : `Купить и открыть`}
+					</Button>
+
+					{isUnlocked && topic.files?.length ? (
+						<Stack gap='xs'>
+							{topic.files.map(file => (
+								<Group
+									key={file.id}
+									justify='space-between'
+									align='flex-start'
+									wrap='nowrap'
+								>
+									<div>
+										<Text size='sm' fw={500}>
+											{file.name}
+										</Text>
+										<Group gap='xs'>
+											<Badge variant='light' color='gray'>
+												{fileTypeLabels[file.file_type] || 'FILE'}
+											</Badge>
+											{file.file_size && (
+												<Text size='xs' c='dimmed'>
+													{file.file_size} МБ
+												</Text>
+											)}
+										</Group>
+									</div>
+									<Button
+										size='xs'
+										variant='subtle'
+										leftSection={<IconDownload size={14} />}
+										component='a'
+										href={file.file_url}
+										target='_blank'
+										rel='noreferrer'
+									>
+										Скачать
+									</Button>
+								</Group>
+							))}
+						</Stack>
+					) : null}
+				</Stack>
+			</Card>
+		);
+	};
 
 	if (error) {
 		return (
-			<Container size='sm' py='xl'>
+			<Container size='lg' py='xl'>
 				<Alert color='red' title='Ошибка' variant='filled'>
 					{error}
 				</Alert>
@@ -41,191 +319,261 @@ const Profile: React.FC = () => {
 		);
 	}
 
-	if (!user) {
+	if (isLoading) {
 		return (
-			<Container size='sm' py='xl'>
-				<Alert color='yellow' title='Внимание' variant='filled'>
-					Не удалось получить данные пользователя
-				</Alert>
+			<Container size='lg' py='xl'>
+				<Stack align='center' gap='sm'>
+					<Loader color='teal' />
+					<Text c='dimmed'>Загружаем материалы и задания...</Text>
+				</Stack>
 			</Container>
 		);
 	}
 
-	const completedAchievements: number = achievements.filter(
-		(a: Achievement) => a.achieved
-	).length;
-	const totalAchievements: number = achievements.length;
-
 	return (
-		<Container size='sm' py='xl'>
-			<Stack gap='lg'>
-				<Group justify='space-between'>
-					<Title order={1}>Личный кабинет</Title>
-					<Button
-						leftSection={<IconRefresh size={16} />}
-						variant='light'
-						onClick={refreshData}
-						loading={isLoading}
-					>
-						Обновить
-					</Button>
-				</Group>
-
-				<Card shadow='md' padding='lg' radius='md' withBorder>
-					<Group wrap='nowrap'>
-						<Avatar src={user.photo_url} size={80} radius='md' color='teal'>
-							{user.first_name?.[0]}
-							{user.last_name?.[0]}
-						</Avatar>
-
-						<Stack gap='xs' style={{ flex: 1 }}>
-							<div>
-								<Text fw={500} size='lg'>
-									{user.first_name} {user.last_name || ''}
-								</Text>
-								{user.username && (
-									<Text c='dimmed' size='sm'>
-										@{user.username}
-									</Text>
-								)}
-							</div>
-
-							<Group gap='sm'>
-								<Badge
-									variant='light'
-									color='teal'
-									leftSection={<IconCoin size={12} />}
-								>
-									<Skeleton
-										visible={isLoading}
-										width={isLoading ? 60 : undefined}
-									>
-										{isLoading
-											? 'Загрузка...'
-											: `${stats?.total_coins || 0} репкоинов`}
-									</Skeleton>
-								</Badge>
-
-								<Badge
-									variant='light'
-									color='blue'
-									leftSection={<IconBook size={12} />}
-								>
-									<Skeleton
-										visible={isLoading}
-										width={isLoading ? 40 : undefined}
-									>
-										{isLoading
-											? '...'
-											: `Уроки: ${stats?.completed_lessons || 0}/${
-													stats?.total_lessons || 0
-											  }`}
-									</Skeleton>
-								</Badge>
-							</Group>
-						</Stack>
+		<Container size='lg' py='xl'>
+			<Stack gap='xl'>
+				<section>
+					<Group justify='space-between' mb='md'>
+						<div>
+							<Title order={1}>Каталог материалов</Title>
+							<Text c='dimmed'>
+								Разделы → темы → файлы. Покупайте за репкоины и открывайте конспекты.
+							</Text>
+						</div>
+						<ThemeIcon size='xl' radius='md' color='teal'>
+							<IconFolder size={24} />
+						</ThemeIcon>
 					</Group>
-				</Card>
 
-				<Grid>
-					<Grid.Col span={{ base: 12, md: 6 }}>
-						<Card shadow='sm' padding='lg' radius='md' withBorder>
-							<Group justify='space-between' mb='xs'>
-								<Text fw={500}>Прогресс обучения</Text>
-								<RingProgress
-									size={60}
-									thickness={6}
-									roundCaps
-									sections={[
-										{
-											value: stats?.completion_rate || 0,
-											color: 'teal',
-										},
-									]}
-									label={
-										<Center>
-											<Text fw={700} size='xs'>
-												{stats?.completion_rate || 0}%
+					<Accordion
+						multiple
+						defaultValue={sections[0]?.slug ? [sections[0].slug] : []}
+					>
+						{sections.map(section => (
+							<Accordion.Item key={section.id} value={section.slug}>
+								<Accordion.Control>
+									<Group gap='sm'>
+										<ThemeIcon variant='light' color='teal'>
+											{section.icon || '📘'}
+										</ThemeIcon>
+										<div>
+											<Text fw={600}>{section.title}</Text>
+											<Text size='sm' c='dimmed'>
+												{section.description}
 											</Text>
-										</Center>
-									}
-								/>
-							</Group>
-							<Progress
-								value={stats?.completion_rate || 0}
-								color='teal'
-								size='lg'
-								radius='xl'
-								mb='sm'
-							/>
-							<Group justify='apart'>
-								<Text size='sm' c='dimmed'>
-									Завершено: {stats?.completed_lessons || 0}
-								</Text>
-								<Text size='sm' c='dimmed'>
-									Всего: {stats?.total_lessons || 0}
-								</Text>
-							</Group>
-						</Card>
-					</Grid.Col>
+										</div>
+									</Group>
+								</Accordion.Control>
+								<Accordion.Panel>
+									<SimpleGrid cols={{ base: 1, sm: 2 }} spacing='lg'>
+										{section.topics.map(topic => topicCard(topic))}
+									</SimpleGrid>
+								</Accordion.Panel>
+							</Accordion.Item>
+						))}
+					</Accordion>
+				</section>
 
-					<Grid.Col span={{ base: 12, md: 6 }}>
-						<Card shadow='sm' padding='lg' radius='md' withBorder>
-							<Group justify='space-between' mb='xs'>
-								<Text fw={500}>Достижения</Text>
-								<Badge
-									variant='light'
-									color='yellow'
-									leftSection={<IconTrophy size={12} />}
+				{featuredQuiz ? (
+					<section>
+						<Card withBorder radius='lg' padding='lg' shadow='sm'>
+							<Group justify='space-between' align='flex-start' mb='md'>
+								<div>
+									<Group gap='xs'>
+										<ThemeIcon variant='light' color='violet'>
+											<IconBook2 size={18} />
+										</ThemeIcon>
+										<Text fw={600}>{featuredQuiz.title}</Text>
+									</Group>
+									<Text c='dimmed' size='sm'>
+										{featuredQuiz.description}
+									</Text>
+									<Group gap='xs' mt='xs'>
+										<Badge variant='light'>
+											{featuredQuiz.total_questions} вопросов
+										</Badge>
+										{featuredQuiz.estimated_minutes && (
+											<Badge variant='light'>
+												{featuredQuiz.estimated_minutes} мин. на прохождение
+											</Badge>
+										)}
+										<Badge variant='light' leftSection={<IconCoin size={14} />}>
+											+1 репкоин за правильный ответ
+										</Badge>
+									</Group>
+								</div>
+								<Button
+									size='md'
+									leftSection={<IconPlayerPlay size={16} />}
+									onClick={() => navigate('/quiz')}
 								>
-									{completedAchievements}/{totalAchievements}
-								</Badge>
+									Начать тест
+								</Button>
 							</Group>
 							<Progress
 								value={
-									totalAchievements > 0
-										? (completedAchievements / totalAchievements) * 100
+									featuredQuiz.total_questions > 0
+										? (1 / featuredQuiz.total_questions) * 100
 										: 0
 								}
-								color='yellow'
-								size='lg'
+								color='violet'
 								radius='xl'
-								mb='sm'
+								size='lg'
 							/>
-							<Text size='sm' c='dimmed'>
-								Получено {completedAchievements} из {totalAchievements}{' '}
-								достижений
+							<Text size='sm' c='dimmed' mt='xs'>
+								3 типа вопросов: одиночный выбор, множественный и True/False. Таймер в
+								каждом вопросе ограничивает время ответа.
 							</Text>
 						</Card>
-					</Grid.Col>
-				</Grid>
+					</section>
+				) : (
+					<section>
+						<Alert color='yellow' variant='light' title='Викторины скоро появятся'>
+							Мы готовим новые тесты. Загляните позже!
+						</Alert>
+					</section>
+				)}
 
-				<Card shadow='sm' padding='md' radius='md' withBorder>
-					<Text fw={500} mb='xs'>
-						Информация об аккаунте
-					</Text>
-					<Group justify='apart'>
+				<section>
+					<Group justify='space-between' mb='sm'>
+						<div>
+							<Title order={2}>Задания для скачивания</Title>
+							<Text c='dimmed'>
+								Соберите задания ЕГЭ/ФИПИ в один архив и скачайте в мини-приложении.
+							</Text>
+						</div>
+						<ThemeIcon size='xl' radius='md' color='blue'>
+							<IconDownload size={24} />
+						</ThemeIcon>
+					</Group>
+
+					<SegmentedControl
+						value={taskFilter}
+						onChange={value => setTaskFilter(value as 'all' | TaskSource)}
+						data={[
+							{ label: 'Все', value: 'all' },
+							{ label: 'ЕГЭ', value: 'ege' },
+							{ label: 'ФИПИ', value: 'fipi' },
+							{ label: 'Другие', value: 'other' },
+						]}
+					/>
+
+					<Stack gap='md' mt='md'>
+						{filteredTasks.map(task => (
+							<Card key={task.id} withBorder radius='md' padding='md' shadow='xs'>
+								<Group justify='space-between' align='flex-start'>
+									<div>
+										<Group gap='xs'>
+											<Badge color='blue' variant='light'>
+												{sourceLabels[task.source]}
+											</Badge>
+											<Text fw={600}>{task.title}</Text>
+										</Group>
+										<Text size='sm' c='dimmed'>
+											{task.description}
+										</Text>
+										<Group gap='xs' mt='xs'>
+											<Badge variant='light'>
+												{fileTypeLabels[task.file_type] || 'FILE'}
+											</Badge>
+											{task.file_size && (
+												<Badge variant='light' color='gray'>
+													{task.file_size} МБ
+												</Badge>
+											)}
+											{task.year && (
+												<Text size='xs' c='dimmed'>
+													{task.year} год
+												</Text>
+											)}
+										</Group>
+									</div>
+									<Stack gap='xs' align='flex-end'>
+										<Checkbox
+											label='В пакет'
+											checked={selectedTasks.has(task.id)}
+											onChange={() => toggleTaskSelection(task.id)}
+										/>
+										<Button
+											size='xs'
+											variant='light'
+											leftSection={<IconDownload size={14} />}
+											component='a'
+											href={task.file_url}
+											target='_blank'
+											rel='noreferrer'
+										>
+											Скачать
+										</Button>
+									</Stack>
+								</Group>
+							</Card>
+						))}
+					</Stack>
+
+					<Group justify='space-between' mt='md'>
+						<Button
+							variant='filled'
+							color='teal'
+							leftSection={<IconDownload size={16} />}
+							onClick={handleBulkDownload}
+							disabled={selectedTasks.size === 0}
+						>
+							Скачать одним файлом ({selectedTasks.size})
+						</Button>
 						<Text size='sm' c='dimmed'>
-							Дата регистрации:
-						</Text>
-						<Text size='sm'>
-							{isLoading
-								? 'Загрузка...'
-								: new Date(profile?.created_at || '').toLocaleDateString(
-										'ru-RU'
-								  )}
+							Отметьте задания чекбоксами, чтобы добавить в общий архив.
 						</Text>
 					</Group>
-					<Group justify='apart'>
-						<Text size='sm' c='dimmed'>
-							ID пользователя:
-						</Text>
-						<Text size='sm'>{user.id}</Text>
-					</Group>
-				</Card>
+
+					<Divider my='lg' label='Готовые подборки' labelPosition='center' />
+
+					<SimpleGrid cols={{ base: 1, sm: 2 }} spacing='lg'>
+						{collections.map(collection => (
+							<Card key={collection.id} withBorder radius='md' padding='lg' shadow='sm'>
+								<Stack gap='xs'>
+									<Group gap='xs'>
+										<ThemeIcon variant='light' color='grape'>
+											<IconFileDescription size={18} />
+										</ThemeIcon>
+										<Text fw={600}>{collection.title}</Text>
+									</Group>
+									<Text size='sm' c='dimmed'>
+										{collection.description}
+									</Text>
+									<Group gap='xs'>
+										<Badge variant='light'>{sourceLabels[collection.source]}</Badge>
+										<Badge variant='light' color='gray'>
+											{collection.total_tasks} файлов
+										</Badge>
+										{collection.total_size && (
+											<Badge variant='light' color='gray'>
+												{collection.total_size} МБ
+											</Badge>
+										)}
+									</Group>
+									<Button
+										variant='subtle'
+										leftSection={<IconProgress size={16} />}
+										onClick={() =>
+											showNotification({
+												title: 'Сборка коллекции',
+												message: `Коллекция «${collection.title}» готова к выгрузке в мини-приложении.`,
+												color: 'grape',
+											})
+										}
+									>
+										Собрать коллекцию
+									</Button>
+								</Stack>
+							</Card>
+						))}
+					</SimpleGrid>
+				</section>
 			</Stack>
 		</Container>
 	);
 };
 
-export default Profile;
+export default Home;

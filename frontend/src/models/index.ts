@@ -34,6 +34,7 @@ export type {
 	MaterialsCatalogResponse,
 	TopicDetailsResponse,
 	PurchaseTopicResponse,
+	PurchaseTopicResult,
 } from './material';
 
 // Quiz models

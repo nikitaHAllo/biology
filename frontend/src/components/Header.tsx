@@ -88,9 +88,9 @@ const Header: React.FC = () => {
 	const location = useLocation();
 
 	const navItems = [
-		{ icon: <IconHome size={18} />, label: 'Главная', to: '/' },
-		{ icon: <IconBrain size={18} />, label: 'Тесты', to: '/quiz' },
-		{ icon: <IconBook size={18} />, label: 'Курсы', to: '/courses' },
+		{ icon: <IconHome size={18} />, label: 'Модули', to: '/' },
+		{ icon: <IconBrain size={18} />, label: 'Викторины', to: '/quiz' },
+		{ icon: <IconBook size={18} />, label: 'Mini App', to: '/mini' },
 		{ icon: <IconUser size={18} />, label: 'Профиль', to: '/profile' },
 	];
 

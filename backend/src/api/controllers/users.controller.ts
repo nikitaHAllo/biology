@@ -7,6 +7,9 @@ import {
 	Achievement,
 	Lesson,
 	Course,
+	UserMaterialAccess,
+	MaterialTopic,
+	MaterialSection,
 } from '../../models';
 
 interface UserProgressWithLesson {
@@ -36,6 +39,19 @@ interface UserAchievementWithAchievement {
 	};
 }
 
+interface UserMaterialAccessWithTopic {
+	topic_id: number;
+	purchased_at: Date;
+	topic?: {
+		id: number;
+		title: string;
+		section?: {
+			id: number;
+			title: string;
+		} | null;
+	};
+}
+
 interface UserWithAssociations {
 	id: number;
 	telegram_id: number;
@@ -44,7 +60,16 @@ interface UserWithAssociations {
 	created_at: Date;
 	progress?: UserProgressWithLesson[];
 	achievements?: UserAchievementWithAchievement[];
+	materialAccesses?: UserMaterialAccessWithTopic[];
 }
+
+type ProfileProgressEntry = {
+	lesson_id: number;
+	lesson_title?: string | null;
+	course_title?: string | null;
+	status: 'pending' | 'in_progress' | 'completed';
+	updated_at: Date;
+};
 
 export class UsersController {
 	// Получить профиль пользователя
@@ -85,6 +110,22 @@ export class UsersController {
 							},
 						],
 					},
+					{
+						model: UserMaterialAccess,
+						as: 'materialAccesses',
+						include: [
+							{
+								model: MaterialTopic,
+								as: 'topic',
+								include: [
+									{
+										model: MaterialSection,
+										as: 'section',
+									},
+								],
+							},
+						],
+					},
 				],
 			});
 
@@ -98,14 +139,40 @@ export class UsersController {
 			// Используем get({ plain: true }) для получения plain объекта
 			const userData = user.get({ plain: true }) as UserWithAssociations;
 			const userProgress = userData.progress || [];
+			const materialAccesses = userData.materialAccesses || [];
+
+			const catalogProgress: ProfileProgressEntry[] = materialAccesses
+				.filter(access => access.topic)
+				.map(access => ({
+					lesson_id: access.topic_id,
+		lesson_title: access.topic?.title ?? null,
+		course_title: access.topic?.section?.title ?? null,
+					status: 'completed' as const,
+					updated_at: access.purchased_at,
+				}));
+
+			const lessonProgressMapped: ProfileProgressEntry[] = userProgress.map(
+				p => ({
+					lesson_id: p.lesson_id,
+		lesson_title: p.lesson?.title ?? null,
+		course_title: p.lesson?.course?.title ?? null,
+					status: p.status,
+					updated_at: p.updated_at,
+				})
+			);
+
+			const combinedProgress: ProfileProgressEntry[] = [
+				...catalogProgress,
+				...lessonProgressMapped,
+			];
 			const userAchievements = userData.achievements || [];
 
 			// Статистика прогресса
-			const completedLessons = userProgress.filter(
-				(p) => p.status === 'completed'
+			const completedLessons = combinedProgress.filter(
+				p => p.status === 'completed'
 			).length;
-			const inProgressLessons = userProgress.filter(
-				(p) => p.status === 'in_progress'
+			const inProgressLessons = combinedProgress.filter(
+				p => p.status === 'in_progress'
 			).length;
 
 			res.json({
@@ -124,14 +191,14 @@ export class UsersController {
 						total_achievements: userAchievements.length,
 						total_coins: userData.coins,
 					},
-					progress: userProgress.map((p) => ({
+					progress: combinedProgress.map(p => ({
 						lesson_id: p.lesson_id,
-						lesson_title: p.lesson?.title,
-						course_title: p.lesson?.course?.title,
+						lesson_title: p.lesson_title,
+						course_title: p.course_title,
 						status: p.status,
 						updated_at: p.updated_at,
 					})),
-					achievements: userAchievements.map((a) => ({
+					achievements: userAchievements.map(a => ({
 						code: a.achievement?.code,
 						title: a.achievement?.title,
 						description: a.achievement?.description,
@@ -244,63 +311,75 @@ export class UsersController {
 			const userProgress = userData.progress || [];
 
 			// Группируем прогресс по курсам
-			const courseProgress = userProgress.reduce((acc: Record<number, {
-				course_id: number;
-				course_title?: string;
-				course_description?: string | null;
-				total_lessons: number;
-				completed_lessons: number;
-				in_progress_lessons: number;
-				progress_percentage: number;
-				lessons: Array<{
-					lesson_id: number;
-					lesson_title?: string;
-					status: 'pending' | 'in_progress' | 'completed';
-					updated_at: Date;
-				}>;
-			}>, progress: UserProgressWithLesson) => {
-				const courseId = progress.lesson?.course_id;
-				if (!courseId) return acc;
+			const courseProgress = userProgress.reduce(
+				(
+					acc: Record<
+						number,
+						{
+							course_id: number;
+							course_title?: string | undefined;
+							course_description?: string | null | undefined;
+							total_lessons: number;
+							completed_lessons: number;
+							in_progress_lessons: number;
+							progress_percentage: number;
+							lessons: Array<{
+								lesson_id: number;
+								lesson_title?: string;
+								status: 'pending' | 'in_progress' | 'completed';
+								updated_at: Date;
+							}>;
+						}
+					>,
+					progress: UserProgressWithLesson
+				) => {
+					const courseId = progress.lesson?.course_id;
+					if (!courseId) return acc;
 
-				if (!acc[courseId]) {
-					acc[courseId] = {
-						course_id: courseId,
-						course_title: progress.lesson?.course?.title,
-						course_description: progress.lesson?.course?.description,
-						total_lessons: 0,
-						completed_lessons: 0,
-						in_progress_lessons: 0,
-						progress_percentage: 0,
-						lessons: [],
+					if (!acc[courseId]) {
+						acc[courseId] = {
+							course_id: courseId,
+							course_title: progress.lesson?.course?.title,
+							course_description: progress.lesson?.course?.description,
+							total_lessons: 0,
+							completed_lessons: 0,
+							in_progress_lessons: 0,
+							progress_percentage: 0,
+							lessons: [],
+						};
+					}
+
+					const lessonData = {
+						lesson_id: progress.lesson_id,
+						...(progress.lesson?.title && {
+							lesson_title: progress.lesson.title,
+						}),
+						status: progress.status,
+						updated_at: progress.updated_at,
 					};
-				}
+					acc[courseId].lessons.push(lessonData);
 
-				acc[courseId].lessons.push({
-					lesson_id: progress.lesson_id,
-					lesson_title: progress.lesson?.title,
-					status: progress.status,
-					updated_at: progress.updated_at,
-				});
+					if (progress.status === 'completed') {
+						acc[courseId].completed_lessons++;
+					} else if (progress.status === 'in_progress') {
+						acc[courseId].in_progress_lessons++;
+					}
 
-				if (progress.status === 'completed') {
-					acc[courseId].completed_lessons++;
-				} else if (progress.status === 'in_progress') {
-					acc[courseId].in_progress_lessons++;
-				}
+					acc[courseId].total_lessons = acc[courseId].lessons.length;
 
-				acc[courseId].total_lessons = acc[courseId].lessons.length;
+					if (acc[courseId].total_lessons > 0) {
+						acc[courseId].progress_percentage = Math.round(
+							(acc[courseId].completed_lessons / acc[courseId].total_lessons) *
+								100
+						);
+					} else {
+						acc[courseId].progress_percentage = 0;
+					}
 
-				if (acc[courseId].total_lessons > 0) {
-					acc[courseId].progress_percentage = Math.round(
-						(acc[courseId].completed_lessons / acc[courseId].total_lessons) *
-							100
-					);
-				} else {
-					acc[courseId].progress_percentage = 0;
-				}
-
-				return acc;
-			}, {});
+					return acc;
+				},
+				{}
+			);
 
 			res.json({
 				success: true,
@@ -392,7 +471,7 @@ export class UsersController {
 
 			// Создаем Map достижений пользователя
 			const userAchievementsMap = new Map(
-				userAchievements.map((ua) => [
+				userAchievements.map(ua => [
 					ua.get('achievement_id'),
 					ua.get({ plain: true }),
 				])
@@ -506,7 +585,7 @@ export class UsersController {
 			const userAchievements = userData.achievements || [];
 
 			const completedLessons = userProgress.filter(
-				(p) => p.status === 'completed'
+				p => p.status === 'completed'
 			).length;
 			const totalLessons = userProgress.length;
 
