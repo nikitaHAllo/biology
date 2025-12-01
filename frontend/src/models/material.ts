@@ -30,6 +30,7 @@ export interface MaterialFile {
 }
 
 export interface TopicWithMaterials extends Topic {
+	get(arg0: string): unknown;
 	files: MaterialFile[];
 	section?: Section;
 }

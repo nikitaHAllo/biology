@@ -8,6 +8,7 @@ import {
 	WalletTransaction,
 } from '../../models';
 import { sequelize } from '../../db/sequelize';
+import { usersService } from '../../services/users.service';
 
 function toNumber(value: unknown): number | undefined {
 	if (value === null || value === undefined) return undefined;
@@ -123,7 +124,7 @@ class MaterialsController {
 			if (!Number.isInteger(topicIdNum) || topicIdNum <= 0) {
 				return res.status(400).json({
 					success: false,
-					message: 'Некорр��ктный topicId',
+					message: 'Некорректный topicId',
 				});
 			}
 
@@ -136,15 +137,13 @@ class MaterialsController {
 				});
 			}
 
-			const user = await User.findOne({
+			let user = await User.findOne({
 				where: { telegram_id: tgIdNum },
 			});
 
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				// Автоматическая регистрация пользователя, если он ещё не создан
+				user = await usersService.registerOrUpdateUser(tgIdNum);
 			}
 
 			const topic = await MaterialTopic.findByPk(topicIdNum, {
@@ -166,11 +165,11 @@ class MaterialsController {
 				});
 			}
 
-			const topicIdSafe = Number(topic.id);
+			const topicIdSafe = Number(topic.get('id'));
 			if (!Number.isInteger(topicIdSafe) || topicIdSafe <= 0) {
-				return res.status(400).json({
+				return res.status(404).json({
 					success: false,
-					message: 'Некорректная тема',
+					message: 'Тема не найдена',
 				});
 			}
 

@@ -30,10 +30,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { showNotification } from '@mantine/notifications';
 import { apiService } from '../api';
-import type {
-	SectionWithTopics,
-	TopicWithMaterials,
-} from '../models/material';
+import type { SectionWithTopics, TopicWithMaterials } from '../models/material';
 import type {
 	DownloadableTask,
 	TaskCollection,
@@ -43,6 +40,7 @@ import type { Quiz } from '../models/quiz';
 import { useTelegram } from '../hooks/useTelegram';
 import { useUserData } from '../hooks/useUserData';
 import { isAxiosError } from 'axios';
+
 
 type SectionWithFullTopics = Omit<SectionWithTopics, 'topics'> & {
 	topics: TopicWithMaterials[];
@@ -120,8 +118,16 @@ const Home: React.FC = () => {
 		const defaults = new Set<number>();
 		sections.forEach(section => {
 			section.topics.forEach(topic => {
-				if (topic.is_purchased) {
-					defaults.add(topic.id);
+				const topicId =
+					typeof topic.get === 'function' ? topic.get('id') : topic.id;
+				const numericTopicId = Number(topicId);
+				const isPurchased =
+					typeof topic.get === 'function'
+						? topic.get('is_purchased')
+						: topic.is_purchased;
+
+				if (!isNaN(numericTopicId) && isPurchased) {
+					defaults.add(numericTopicId);
 				}
 			});
 		});
@@ -136,7 +142,22 @@ const Home: React.FC = () => {
 	}, [taskFilter, tasksList]);
 
 	const handlePurchase = async (topic: TopicWithMaterials): Promise<void> => {
-		const isUnlocked = purchasedTopics.has(topic.id);
+		// Безопасное получение ID
+		const topicId =
+			typeof topic.get === 'function' ? topic.get('id') : topic.id;
+		const numericTopicId = Number(topicId);
+
+		if (isNaN(numericTopicId)) {
+			console.error('Invalid topic ID:', topicId);
+			showNotification({
+				title: 'Ошибка',
+				message: 'Неверный идентификатор темы',
+				color: 'red',
+			});
+			return;
+		}
+
+		const isUnlocked = purchasedTopics.has(numericTopicId);
 
 		const openFirstFile = (): void => {
 			const firstFile = topic.files?.[0];
@@ -153,22 +174,23 @@ const Home: React.FC = () => {
 		if (!user) {
 			showNotification({
 				title: 'Требуется авторизация',
-				message: 'Откройте мини-приложение из Telegram, чтобы покупать материалы.',
+				message:
+					'Откройте мини-приложение из Telegram, чтобы покупать материалы.',
 				color: 'yellow',
 			});
 			return;
 		}
 
-		if (purchaseLoading === topic.id) {
+		if (purchaseLoading === numericTopicId) {
 			return;
 		}
 
-		setPurchaseLoading(topic.id);
+		setPurchaseLoading(numericTopicId);
 		try {
-			await apiService.purchaseTopic(user.id, topic.id);
+			await apiService.purchaseTopic(user.id, numericTopicId);
 			setPurchasedTopics(prev => {
 				const next = new Set(prev);
-				next.add(topic.id);
+				next.add(numericTopicId);
 				return next;
 			});
 			await refreshData();
@@ -234,23 +256,52 @@ const Home: React.FC = () => {
 	};
 
 	const topicCard = (topic: TopicWithMaterials): React.ReactNode => {
-		const isUnlocked = purchasedTopics.has(topic.id);
+		// Безопасное получение данных с явными типами
+		const topicId =
+			typeof topic.get === 'function' ? topic.get('id') : topic.id;
+		const numericTopicId = Number(topicId);
+
+		const topicTitle: string = String(
+			(typeof topic.get === 'function' ? topic.get('title') : topic.title) || ''
+		);
+
+		const topicDescription: string = String(
+			(typeof topic.get === 'function'
+				? topic.get('description')
+				: topic.description) || ''
+		);
+
+		const topicPrice =
+			typeof topic.get === 'function'
+				? topic.get('price_repcoins')
+				: topic.price_repcoins;
+		const numericTopicPrice = Number(topicPrice) || 0;
+
+		const topicFiles = topic.files || [];
+
+		const isUnlocked = purchasedTopics.has(numericTopicId);
 
 		return (
-			<Card key={topic.id} withBorder radius='md' padding='lg' shadow='sm'>
+			<Card
+				key={numericTopicId}
+				withBorder
+				radius='md'
+				padding='lg'
+				shadow='sm'
+			>
 				<Stack gap='xs'>
 					<Group justify='space-between' align='flex-start'>
 						<div>
-							<Text fw={600}>{topic.title}</Text>
+							<Text fw={600}>{topicTitle}</Text>
 							<Text c='dimmed' size='sm'>
-								{topic.description}
+								{topicDescription}
 							</Text>
 						</div>
 						<Badge
 							color={isUnlocked ? 'teal' : 'gray'}
 							leftSection={<IconCoin size={14} />}
 						>
-							{topic.price_repcoins} реп.
+							{numericTopicPrice} реп.
 						</Badge>
 					</Group>
 
@@ -260,14 +311,14 @@ const Home: React.FC = () => {
 						onClick={() => {
 							void handlePurchase(topic);
 						}}
-						loading={purchaseLoading === topic.id}
+						loading={purchaseLoading === numericTopicId}
 					>
 						{isUnlocked ? 'Открыть' : `Купить и открыть`}
 					</Button>
 
-					{isUnlocked && topic.files?.length ? (
+					{isUnlocked && topicFiles.length ? (
 						<Stack gap='xs'>
-							{topic.files.map(file => (
+							{topicFiles.map(file => (
 								<Group
 									key={file.id}
 									justify='space-between'
@@ -338,7 +389,8 @@ const Home: React.FC = () => {
 						<div>
 							<Title order={1}>Каталог материалов</Title>
 							<Text c='dimmed'>
-								Разделы → темы → файлы. Покупайте за репкоины и открывайте конспекты.
+								Разделы → темы → файлы. Покупайте за репкоины и открывайте
+								конспекты.
 							</Text>
 						</div>
 						<ThemeIcon size='xl' radius='md' color='teal'>
@@ -422,14 +474,18 @@ const Home: React.FC = () => {
 								size='lg'
 							/>
 							<Text size='sm' c='dimmed' mt='xs'>
-								3 типа вопросов: одиночный выбор, множественный и True/False. Таймер в
-								каждом вопросе ограничивает время ответа.
+								3 типа вопросов: одиночный выбор, множественный и True/False.
+								Таймер в каждом вопросе ограничивает время ответа.
 							</Text>
 						</Card>
 					</section>
 				) : (
 					<section>
-						<Alert color='yellow' variant='light' title='Викторины скоро появятся'>
+						<Alert
+							color='yellow'
+							variant='light'
+							title='Викторины скоро появятся'
+						>
 							Мы готовим новые тесты. Загляните позже!
 						</Alert>
 					</section>
@@ -440,7 +496,8 @@ const Home: React.FC = () => {
 						<div>
 							<Title order={2}>Задания для скачивания</Title>
 							<Text c='dimmed'>
-								Соберите задания ЕГЭ/ФИПИ в один архив и скачайте в мини-приложении.
+								Соберите задания ЕГЭ/ФИПИ в один архив и скачайте в
+								мини-приложении.
 							</Text>
 						</div>
 						<ThemeIcon size='xl' radius='md' color='blue'>
@@ -461,7 +518,13 @@ const Home: React.FC = () => {
 
 					<Stack gap='md' mt='md'>
 						{filteredTasks.map(task => (
-							<Card key={task.id} withBorder radius='md' padding='md' shadow='xs'>
+							<Card
+								key={task.id}
+								withBorder
+								radius='md'
+								padding='md'
+								shadow='xs'
+							>
 								<Group justify='space-between' align='flex-start'>
 									<div>
 										<Group gap='xs'>
@@ -531,7 +594,13 @@ const Home: React.FC = () => {
 
 					<SimpleGrid cols={{ base: 1, sm: 2 }} spacing='lg'>
 						{collections.map(collection => (
-							<Card key={collection.id} withBorder radius='md' padding='lg' shadow='sm'>
+							<Card
+								key={collection.id}
+								withBorder
+								radius='md'
+								padding='lg'
+								shadow='sm'
+							>
 								<Stack gap='xs'>
 									<Group gap='xs'>
 										<ThemeIcon variant='light' color='grape'>
@@ -543,7 +612,9 @@ const Home: React.FC = () => {
 										{collection.description}
 									</Text>
 									<Group gap='xs'>
-										<Badge variant='light'>{sourceLabels[collection.source]}</Badge>
+										<Badge variant='light'>
+											{sourceLabels[collection.source]}
+										</Badge>
 										<Badge variant='light' color='gray'>
 											{collection.total_tasks} файлов
 										</Badge>

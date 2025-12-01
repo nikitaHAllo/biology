@@ -96,7 +96,10 @@ const Profile: React.FC = () => {
 									color='teal'
 									leftSection={<IconCoin size={12} />}
 								>
-									<Skeleton visible={isLoading} width={isLoading ? 60 : undefined}>
+									<Skeleton
+										visible={isLoading}
+										width={isLoading ? 60 : undefined}
+									>
 										{isLoading
 											? 'Загрузка...'
 											: `${stats?.total_coins || 0} репкоинов`}
@@ -108,7 +111,10 @@ const Profile: React.FC = () => {
 									color='blue'
 									leftSection={<IconBook size={12} />}
 								>
-									<Skeleton visible={isLoading} width={isLoading ? 40 : undefined}>
+									<Skeleton
+										visible={isLoading}
+										width={isLoading ? 40 : undefined}
+									>
 										{isLoading
 											? '...'
 											: `Уроки: ${stats?.completed_lessons || 0}/${
@@ -187,7 +193,8 @@ const Profile: React.FC = () => {
 								mb='sm'
 							/>
 							<Text size='sm' c='dimmed'>
-								Получено {completedAchievements} из {totalAchievements} достижений
+								Получено {completedAchievements} из {totalAchievements}{' '}
+								достижений
 							</Text>
 						</Card>
 					</Grid.Col>
@@ -204,7 +211,9 @@ const Profile: React.FC = () => {
 						<Text size='sm'>
 							{isLoading
 								? 'Загрузка...'
-								: new Date(profile?.created_at || '').toLocaleDateString('ru-RU')}
+								: new Date(profile?.created_at || '').toLocaleDateString(
+										'ru-RU'
+								  )}
 						</Text>
 					</Group>
 					<Group justify='apart'>
