@@ -1,5 +1,12 @@
 import { Request, Response } from 'express';
-import { Quiz, QuizQuestion, QuizOption, WalletTransaction, UserProgress, User } from '../../models';
+import {
+	Quiz,
+	QuizQuestion,
+	QuizOption,
+	WalletTransaction,
+	UserProgress,
+	User,
+} from '../../models';
 
 class QuizzesController {
 	async list(_req: Request, res: Response) {
@@ -35,26 +42,32 @@ class QuizzesController {
 			const { quizId } = req.params;
 			const { telegramId, score, earned_coins } = req.body;
 
-			const user = await User.findOne({ where: { telegram_id: telegramId } });
+			const user = await User.findOne({
+				where: { telegram_id: telegramId },
+				raw: true,
+			});
 			if (!user)
 				return res
 					.status(404)
 					.json({ success: false, message: 'Пользователь не найден' });
-			console.log(req.body);
+			console.log(req.body, earned_coins);
 			// Проверяем — есть ли уже прогресс по этому квизу
 			let progress = await UserProgress.findOne({
-				where: { user_id: user.dataValues.id, quiz_id: quizId },
+				where: { user_id: user.id, quiz_id: quizId },
+				raw: true,
 			});
+
+			const status = score >= 2 ? 'completed' : 'pending';
 
 			if (!progress) {
 				progress = await UserProgress.create({
-					user_id: user.dataValues.id,
+					user_id: user.id,
 					quiz_id: Number(quizId),
 					is_completed: true,
 					score,
-					earned_coins: earned_coins,
+					earned_coins,
 					completed_at: new Date(),
-					status: 'pending',
+					status,
 				});
 			} else {
 				// обновляем только если результат лучше
@@ -68,17 +81,25 @@ class QuizzesController {
 			}
 
 			// Начисляем монеты пользователю
-			await user.increment('coins', { by: earned_coins });
+			 await User.update(
+					{
+						coins: Number(user.coins) + Number(earned_coins),
+					},
+					{
+						where: { id: user.id },
+					}
+				);
+
 
 			// Добавляем запись в кошелек
 			await WalletTransaction.create({
-				user_id: user.dataValues.id,
+				user_id: user.id,
 				type: 'credit',
 				amount: earned_coins,
 				source: 'quiz',
 				meta: { quiz_id: Number(quizId) },
 			});
-
+			console.log(progress);
 			return res.json({
 				success: true,
 				message: 'Прогресс сохранён',

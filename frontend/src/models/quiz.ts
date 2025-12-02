@@ -11,6 +11,16 @@ export interface QuizQuestion {
 	timer_seconds?: number | null;
 }
 
+export interface QuizListItem {
+	id: number;
+	title: string;
+	description: string;
+	difficulty: 'easy' | 'medium' | 'hard';
+	questions_count: number;
+	estimated_time?: number;
+	coins_reward?: number;
+}
+
 export interface QuizOption {
 	id: number;
 	question_id: number;

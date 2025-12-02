@@ -1,11 +1,17 @@
-import { useEffect, useState, useMemo } from 'react';
-import { apiService } from '../../api';
+// hooks/useQuiz.ts
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import type { Quiz, QuizQuestion } from '../../models';
+import { apiService } from '../../api';
+
 
 export type AnswerState = 'idle' | 'correct' | 'incorrect' | 'timeout';
 
 export const useQuiz = (user: { id: number } | null) => {
-	const [quiz, setQuiz] = useState<Quiz | null>(null);
+	// Основные состояния
+	const [quizzes, setQuizzes] = useState<Quiz[]>([]); // ← все тесты
+	const [quiz, setQuiz] = useState<Quiz | null>(null); // ← текущий тест
+	const [currentQuizIndex, setCurrentQuizIndex] = useState(0); // ← индекс текущего теста
+
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -20,9 +26,10 @@ export const useQuiz = (user: { id: number } | null) => {
 
 	const currentQuestion = quiz?.questions[currentQuestionIndex];
 	const totalQuestions = quiz?.questions.length ?? 0;
+	const totalQuizzes = quizzes.length;
 
 	// --------------------------
-	// LOAD QUIZ
+	// LOAD QUIZZES
 	// --------------------------
 	useEffect(() => {
 		const load = async () => {
@@ -31,18 +38,22 @@ export const useQuiz = (user: { id: number } | null) => {
 				setError(null);
 
 				const list = await apiService.getQuizzesList();
-				console.log(list);
-				const first = list[0];
+				console.log('Тесты:', list);
 
-				if (!first) {
-					setError('Нет доступных викторин');
+				if (!list || list.length === 0) {
+					setError('Нет доступных тестов');
 					return;
 				}
 
+				setQuizzes(list);
+
+				// Загружаем первый тест
+				const first = list[0];
 				const details = await apiService.getQuizDetails(first.id);
 				setQuiz(details);
+				setCurrentQuizIndex(0);
 			} catch {
-				setError('Ошибка загрузки викторины');
+				setError('Ошибка загрузки тестов');
 			} finally {
 				setIsLoading(false);
 			}
@@ -52,7 +63,64 @@ export const useQuiz = (user: { id: number } | null) => {
 	}, []);
 
 	// --------------------------
-	// TOGGLE OPTION
+	// SWITCH QUIZ FUNCTIONS
+	// --------------------------
+	const switchQuiz = useCallback(
+		async (quizId: number) => {
+			try {
+				setIsLoading(true);
+
+				const quizDetails = await apiService.getQuizDetails(quizId);
+				setQuiz(quizDetails);
+
+				// Находим индекс выбранного теста
+				const newIndex = quizzes.findIndex(q => q.id === quizId);
+				if (newIndex !== -1) {
+					setCurrentQuizIndex(newIndex);
+				}
+
+				// Сбрасываем состояние теста
+				resetQuizState();
+			} catch {
+				setError('Ошибка загрузки теста');
+			} finally {
+				setIsLoading(false);
+			}
+		},
+		[quizzes]
+	);
+
+	const nextQuiz = useCallback(async () => {
+		if (currentQuizIndex >= totalQuizzes - 1) {
+			console.log('Это последний тест');
+			return;
+		}
+
+		const nextQuizId = quizzes[currentQuizIndex + 1].id;
+		await switchQuiz(nextQuizId);
+	}, [currentQuizIndex, totalQuizzes, quizzes, switchQuiz]);
+
+	const prevQuiz = useCallback(async () => {
+		if (currentQuizIndex <= 0) {
+			console.log('Это первый тест');
+			return;
+		}
+
+		const prevQuizId = quizzes[currentQuizIndex - 1].id;
+		await switchQuiz(prevQuizId);
+	}, [currentQuizIndex, quizzes, switchQuiz]);
+
+	const resetQuizState = () => {
+		setCurrentQuestionIndex(0);
+		setSelectedOptions([]);
+		setAnswerState('idle');
+		setHistory({});
+		setCoins(0);
+		setIsFinished(false);
+	};
+
+	// --------------------------
+	// QUESTION LOGIC (без изменений)
 	// --------------------------
 	const toggleOption = (id: number) => {
 		if (!currentQuestion || answerState !== 'idle') return;
@@ -74,9 +142,6 @@ export const useQuiz = (user: { id: number } | null) => {
 		});
 	};
 
-	// --------------------------
-	// CHECK ANSWER
-	// --------------------------
 	const evaluateAnswer = (q: QuizQuestion, answer: number[]) => {
 		const a = [...answer].sort();
 		const b = [...q.correct_answer_ids].sort();
@@ -98,9 +163,6 @@ export const useQuiz = (user: { id: number } | null) => {
 		if (isCorrect) setCoins(c => c + currentQuestion.points || 0);
 	};
 
-	// --------------------------
-	// HANDLE TIMEOUT
-	// --------------------------
 	const handleTimeout = () => {
 		if (!currentQuestion || answerState !== 'idle') return;
 
@@ -116,8 +178,6 @@ export const useQuiz = (user: { id: number } | null) => {
 		if (!quiz || !user) return;
 
 		const score = Object.values(history).filter(h => h.isCorrect).length;
-
-		// coins уже был накоплен по баллам вопросов
 		const earnedCoins = coins;
 
 		const result = await apiService.completeQuiz(quiz.id, {
@@ -125,13 +185,10 @@ export const useQuiz = (user: { id: number } | null) => {
 			score,
 			earned_coins: earnedCoins,
 		});
-
+		console.log(result);
 		setCoins(result.earned_coins);
 	};
 
-	// --------------------------
-	// NEXT QUESTION
-	// --------------------------
 	const next = () => {
 		if (!quiz) return;
 
@@ -146,16 +203,8 @@ export const useQuiz = (user: { id: number } | null) => {
 		setAnswerState('idle');
 	};
 
-	// --------------------------
-	// RESTART QUIZ
-	// --------------------------
 	const restart = () => {
-		setCurrentQuestionIndex(0);
-		setSelectedOptions([]);
-		setAnswerState('idle');
-		setHistory({});
-		setCoins(0);
-		setIsFinished(false);
+		resetQuizState();
 	};
 
 	// --------------------------
@@ -166,32 +215,58 @@ export const useQuiz = (user: { id: number } | null) => {
 		return totalQuestions > 0 ? (answered / totalQuestions) * 100 : 0;
 	}, [history, totalQuestions]);
 
+	// Вычисляемые значения для навигации
+	const hasNextQuiz = useMemo(() => {
+		return currentQuizIndex < totalQuizzes - 1;
+	}, [currentQuizIndex, totalQuizzes]);
+
+	const hasPrevQuiz = useMemo(() => {
+		return currentQuizIndex > 0;
+	}, [currentQuizIndex]);
+
+	const quizzesInfo = useMemo(() => {
+		return quizzes.map((q, index) => ({
+			id: q.id,
+			title: q.title,
+			description: q.description,
+			isCurrent: index === currentQuizIndex,
+		}));
+	}, [quizzes, currentQuizIndex]);
+
 	return {
+		// Данные
 		quiz,
+		quizzes: quizzesInfo,
+		currentQuizIndex,
+		totalQuizzes,
+
+		// Состояния
 		error,
 		isLoading,
-
 		currentQuestion,
 		currentQuestionIndex,
 		totalQuestions,
-
 		selectedOptions,
-		setSelectedOptions,
+		answerState,
+		history,
+		coins,
+		isFinished,
 
+		// Навигация по тестам
+		hasNextQuiz,
+		hasPrevQuiz,
+		nextQuiz,
+		prevQuiz,
+		switchQuiz,
+
+		// Функции теста
 		toggleOption,
 		checkAnswer,
 		handleTimeout,
-
-		answerState,
-		setAnswerState,
-
-		history,
-		coins,
-
 		next,
 		restart,
-		isFinished,
 
+		// Прогресс
 		progress,
 	};
 };

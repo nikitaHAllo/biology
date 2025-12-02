@@ -1,3 +1,4 @@
+// pages/QuizPage.tsx
 import { Loader, Alert, Card } from '@mantine/core';
 import {
 	QuizExplanation,
@@ -7,6 +8,7 @@ import {
 	QuizProgress,
 	QuizResult,
 	QuizLayout,
+	QuizNavigation,
 } from '../components';
 import { useQuiz, useTelegram, useTimer } from '../hooks';
 
@@ -25,6 +27,9 @@ const QuizPage = () => {
 
 	if (quiz.isFinished) {
 		const correct = Object.values(quiz.history).filter(x => x.isCorrect).length;
+		const percentage = Math.round((correct / quiz.totalQuestions) * 100);
+		const isSuccess = percentage >= 70;
+
 		return (
 			<QuizLayout>
 				<QuizResult
@@ -32,6 +37,9 @@ const QuizPage = () => {
 					total={quiz.totalQuestions}
 					coins={quiz.coins}
 					restart={quiz.restart}
+					onNextQuiz={quiz.nextQuiz}
+					hasNextQuiz={quiz.hasNextQuiz && isSuccess}
+					score={correct}
 				/>
 			</QuizLayout>
 		);
@@ -40,9 +48,23 @@ const QuizPage = () => {
 	const q = quiz.currentQuestion;
 
 	return (
-		<QuizLayout gap='xl'>
-			{/* Заголовок викторины в карточке */}
-			<Card withBorder radius='lg' padding='lg' shadow='sm'>
+		<QuizLayout gap='xs'>
+			{/* Навигация по тестам */}
+			{quiz.quizzes.length > 1 && (
+				<Card withBorder padding='md' radius='lg'>
+					<QuizNavigation
+						currentQuizIndex={quiz.currentQuizIndex}
+						totalQuizzes={quiz.totalQuizzes}
+						onPrev={quiz.prevQuiz}
+						onNext={quiz.nextQuiz}
+						onSelect={quiz.switchQuiz} // ← исправлено с selectQuiz на switchQuiz
+						quizzes={quiz.quizzes}
+					/>
+				</Card>
+			)}
+
+			{/* Заголовок викторины */}
+			<Card withBorder padding='lg' radius='lg'>
 				<QuizHeader
 					index={quiz.currentQuestionIndex}
 					total={quiz.totalQuestions}
@@ -52,8 +74,8 @@ const QuizPage = () => {
 				/>
 			</Card>
 
-			{/* Варианты ответов в карточке */}
-			<Card withBorder radius='lg' padding='lg' shadow='sm'>
+			{/* Варианты ответов */}
+			<Card withBorder padding='lg' radius='lg'>
 				<QuizOptions
 					question={q!}
 					selected={quiz.selectedOptions}
@@ -62,13 +84,13 @@ const QuizPage = () => {
 				/>
 			</Card>
 
-			{/* Объяснение (показывается только после ответа) */}
+			{/* Объяснение */}
 			{quiz.answerState !== 'idle' && (
 				<QuizExplanation state={quiz.answerState} text={q!.explanation} />
 			)}
 
-			{/* Кнопки управления в карточке */}
-			<Card withBorder radius='lg' padding='lg' shadow='sm'>
+			{/* Кнопки управления */}
+			<Card withBorder padding='lg' radius='lg'>
 				<QuizFooter
 					canCheck={
 						quiz.selectedOptions.length > 0 && quiz.answerState === 'idle'
@@ -85,8 +107,8 @@ const QuizPage = () => {
 				/>
 			</Card>
 
-			{/* Прогресс-бар в карточке */}
-			<Card withBorder radius='lg' padding='lg' shadow='sm'>
+			{/* Прогресс-бар */}
+			<Card withBorder padding='lg' radius='lg'>
 				<QuizProgress value={quiz.progress} />
 			</Card>
 		</QuizLayout>

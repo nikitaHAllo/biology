@@ -10,6 +10,7 @@ import {
 	UserMaterialAccess,
 	MaterialTopic,
 	MaterialSection,
+	Quiz,
 } from '../../models';
 
 interface UserProgressWithLesson {
@@ -145,8 +146,8 @@ export class UsersController {
 				.filter(access => access.topic)
 				.map(access => ({
 					lesson_id: access.topic_id,
-		lesson_title: access.topic?.title ?? null,
-		course_title: access.topic?.section?.title ?? null,
+					lesson_title: access.topic?.title ?? null,
+					course_title: access.topic?.section?.title ?? null,
 					status: 'completed' as const,
 					updated_at: access.purchased_at,
 				}));
@@ -154,8 +155,8 @@ export class UsersController {
 			const lessonProgressMapped: ProfileProgressEntry[] = userProgress.map(
 				p => ({
 					lesson_id: p.lesson_id,
-		lesson_title: p.lesson?.title ?? null,
-		course_title: p.lesson?.course?.title ?? null,
+					lesson_title: p.lesson?.title ?? null,
+					course_title: p.lesson?.course?.title ?? null,
 					status: p.status,
 					updated_at: p.updated_at,
 				})
@@ -583,12 +584,12 @@ export class UsersController {
 			const userData = user.get({ plain: true }) as UserWithAssociations;
 			const userProgress = userData.progress || [];
 			const userAchievements = userData.achievements || [];
-
+			const totalQuizzes = await Quiz.count();
 			const completedLessons = userProgress.filter(
 				p => p.status === 'completed'
 			).length;
-			const totalLessons = userProgress.length;
 
+			console.log(userProgress);
 			res.json({
 				success: true,
 				data: {
@@ -599,11 +600,11 @@ export class UsersController {
 						member_since: userData.created_at,
 					},
 					stats: {
-						total_lessons: totalLessons,
+						total_lessons: totalQuizzes,
 						completed_lessons: completedLessons,
 						completion_rate:
-							totalLessons > 0
-								? Math.round((completedLessons / totalLessons) * 100)
+							totalQuizzes > 0
+								? Math.round((completedLessons / totalQuizzes) * 100)
 								: 0,
 						total_achievements: userAchievements.length,
 						total_coins: userData.coins,

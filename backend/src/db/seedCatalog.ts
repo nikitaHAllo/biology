@@ -219,7 +219,7 @@ const materialsSeed: MaterialSeed[] = [
 
 const quizzesSeed: QuizSeed[] = [
 	{
-		id:1,
+		id: 1,
 		title: 'Цитология. Базовый уровень',
 		description: 'Проверь себя по строению клетки и клеточному циклу.',
 		total_points: 30,
@@ -246,7 +246,61 @@ const quizzesSeed: QuizSeed[] = [
 				points: 10,
 				order_index: 2,
 				timer_seconds: 45,
-				explanation: 'Классические стадии митоза: профаза, метафаза, анафаза и телофаза.',
+				explanation:
+					'Классические стадии митоза: профаза, метафаза, анафаза и телофаза.',
+				options: [
+					{ option_text: 'Профаза', is_correct: true, order_index: 1 },
+					{ option_text: 'Мейофаза', is_correct: false, order_index: 2 },
+					{ option_text: 'Метафаза', is_correct: true, order_index: 3 },
+					{ option_text: 'Анафаза', is_correct: true, order_index: 4 },
+				],
+			},
+			{
+				question_text:
+					'Верно ли, что интерфаза — самая продолжительная часть клеточного цикла?',
+				question_type: 'true_false',
+				points: 10,
+				order_index: 3,
+				timer_seconds: 20,
+				explanation:
+					'В интерфазу клетка растет, удваивает ДНК и готовится к делению, поэтому эта стадия длится дольше остальных.',
+				options: [
+					{ option_text: 'Верно', is_correct: true, order_index: 1 },
+					{ option_text: 'Неверно', is_correct: false, order_index: 2 },
+				],
+			},
+		],
+	},
+	{
+		id: 2,
+		title: 'Цитология. Базовый уровень',
+		description: 'Проверь себя по строению клетки и клеточному циклу.',
+		total_points: 30,
+		estimated_minutes: 5,
+		questions: [
+			{
+				question_text: 'Какая органелла синтезирует АТФ в клетке?',
+				question_type: 'single_choice',
+				points: 10,
+				order_index: 1,
+				timer_seconds: 30,
+				explanation:
+					'Основная функция митохондрий — синтез АТФ в ходе окислительного фосфорилирования.',
+				options: [
+					{ option_text: 'Митохондрия', is_correct: true, order_index: 1 },
+					{ option_text: 'Лизосома', is_correct: false, order_index: 2 },
+					{ option_text: 'Аппарат Гольджи', is_correct: false, order_index: 3 },
+					{ option_text: 'Центриоль', is_correct: false, order_index: 4 },
+				],
+			},
+			{
+				question_text: 'Выберите этапы, характерные для митоза.',
+				question_type: 'multiple_choice',
+				points: 10,
+				order_index: 2,
+				timer_seconds: 45,
+				explanation:
+					'Классические стадии митоза: профаза, метафаза, анафаза и телофаза.',
 				options: [
 					{ option_text: 'Профаза', is_correct: true, order_index: 1 },
 					{ option_text: 'Мейофаза', is_correct: false, order_index: 2 },

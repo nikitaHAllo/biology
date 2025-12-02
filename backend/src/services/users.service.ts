@@ -99,19 +99,14 @@ export class UsersService {
 			const user = await User.findOne({
 				where: { telegram_id: telegramId },
 				attributes: ['id', 'telegram_id', 'username', 'coins', 'created_at'],
+				raw: true,
 			});
 
 			if (!user) {
 				return null;
 			}
 
-			return {
-				id: user.get('id'),
-				telegram_id: user.get('telegram_id'),
-				username: user.get('username'),
-				coins: user.get('coins'),
-				created_at: user.get('created_at'),
-			};
+			return user as UserProfile;
 		} catch (error) {
 			console.error('Error getting user profile:', error);
 			throw error;
