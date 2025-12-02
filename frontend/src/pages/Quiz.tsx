@@ -1,5 +1,4 @@
-import { Loader, Alert } from '@mantine/core';
-
+import { Loader, Alert, Card } from '@mantine/core';
 import {
 	QuizExplanation,
 	QuizFooter,
@@ -12,7 +11,7 @@ import {
 import { useQuiz, useTelegram, useTimer } from '../hooks';
 
 const QuizPage = () => {
-	const { user } = useTelegram(); 
+	const { user } = useTelegram();
 	const quiz = useQuiz(user);
 
 	const timer = useTimer({
@@ -41,40 +40,55 @@ const QuizPage = () => {
 	const q = quiz.currentQuestion;
 
 	return (
-		<QuizLayout>
-			<QuizHeader
-				index={quiz.currentQuestionIndex}
-				total={quiz.totalQuestions}
-				coins={quiz.coins}
-				question={q!.question_text}
-				time={timer.time}
-			/>
+		<QuizLayout gap='xl'>
+			{/* Заголовок викторины в карточке */}
+			<Card withBorder radius='lg' padding='lg' shadow='sm'>
+				<QuizHeader
+					index={quiz.currentQuestionIndex}
+					total={quiz.totalQuestions}
+					coins={quiz.coins}
+					question={q!.question_text}
+					time={timer.time}
+				/>
+			</Card>
 
-			<QuizOptions
-				question={q!}
-				selected={quiz.selectedOptions}
-				disabled={quiz.answerState !== 'idle'}
-				toggle={quiz.toggleOption}
-			/>
+			{/* Варианты ответов в карточке */}
+			<Card withBorder radius='lg' padding='lg' shadow='sm'>
+				<QuizOptions
+					question={q!}
+					selected={quiz.selectedOptions}
+					disabled={quiz.answerState !== 'idle'}
+					toggle={quiz.toggleOption}
+				/>
+			</Card>
 
-			<QuizExplanation state={quiz.answerState} text={q!.explanation} />
+			{/* Объяснение (показывается только после ответа) */}
+			{quiz.answerState !== 'idle' && (
+				<QuizExplanation state={quiz.answerState} text={q!.explanation} />
+			)}
 
-			<QuizFooter
-				canCheck={
-					quiz.selectedOptions.length > 0 && quiz.answerState === 'idle'
-				}
-				canNext={quiz.answerState !== 'idle'}
-				onCheck={() => {
-					quiz.checkAnswer();
-					timer.stop();
-				}}
-				onNext={() => {
-					quiz.next();
-				}}
-				isLast={quiz.currentQuestionIndex === quiz.totalQuestions - 1}
-			/>
+			{/* Кнопки управления в карточке */}
+			<Card withBorder radius='lg' padding='lg' shadow='sm'>
+				<QuizFooter
+					canCheck={
+						quiz.selectedOptions.length > 0 && quiz.answerState === 'idle'
+					}
+					canNext={quiz.answerState !== 'idle'}
+					onCheck={() => {
+						quiz.checkAnswer();
+						timer.stop();
+					}}
+					onNext={() => {
+						quiz.next();
+					}}
+					isLast={quiz.currentQuestionIndex === quiz.totalQuestions - 1}
+				/>
+			</Card>
 
-			<QuizProgress value={quiz.progress} />
+			{/* Прогресс-бар в карточке */}
+			<Card withBorder radius='lg' padding='lg' shadow='sm'>
+				<QuizProgress value={quiz.progress} />
+			</Card>
 		</QuizLayout>
 	);
 };
