@@ -18,6 +18,8 @@ import type {
 	TasksListResponse,
 	PurchaseTopicResult,
 } from '../models';
+import type { CompleteQuizResponse } from '../models/task';
+import type { CompleteQuizPayload } from '../models/quiz';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -66,7 +68,9 @@ class ApiService {
 		await this.api.patch(`/users/${telegramId}/profile`, { username });
 	}
 
-	async getMaterialsCatalog(telegramId?: number): Promise<MaterialsCatalogResponse> {
+	async getMaterialsCatalog(
+		telegramId?: number
+	): Promise<MaterialsCatalogResponse> {
 		const response = await this.api.get<ApiResponse<MaterialsCatalogResponse>>(
 			'/materials/catalog',
 			{
@@ -104,6 +108,13 @@ class ApiService {
 	async getDownloadableTasks(): Promise<TasksListResponse> {
 		const response = await this.api.get<ApiResponse<TasksListResponse>>(
 			'/tasks/downloads'
+		);
+		return response.data.data;
+	}
+	async completeQuiz(quizId: number, payload: CompleteQuizPayload) {
+		const response = await this.api.post<ApiResponse<CompleteQuizResponse>>(
+			`/quizzes/${quizId}/complete`,
+			payload
 		);
 		return response.data.data;
 	}

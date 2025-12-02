@@ -47,3 +47,11 @@ export interface TaskCollectionResponse {
 	collection: TaskCollection;
 }
 
+
+export interface CompleteQuizResponse {
+	quiz_id: number;
+	score: number;
+	earned_coins: number;
+	status: 'completed';
+}
+

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Quiz, QuizQuestion, QuizOption } from '../../models';
+import { Quiz, QuizQuestion, QuizOption, WalletTransaction, UserProgress, User } from '../../models';
 
 class QuizzesController {
 	async list(_req: Request, res: Response) {
@@ -27,6 +27,68 @@ class QuizzesController {
 				success: false,
 				message: 'Не удалось загрузить список викторин',
 			});
+		}
+	}
+	// POST /quizzes/:quizId/complete
+	async complete(req: Request, res: Response) {
+		try {
+			const { quizId } = req.params;
+			const { telegramId, score, earned_coins } = req.body;
+
+			const user = await User.findOne({ where: { telegram_id: telegramId } });
+			if (!user)
+				return res
+					.status(404)
+					.json({ success: false, message: 'Пользователь не найден' });
+			console.log(req.body);
+			// Проверяем — есть ли уже прогресс по этому квизу
+			let progress = await UserProgress.findOne({
+				where: { user_id: user.dataValues.id, quiz_id: quizId },
+			});
+
+			if (!progress) {
+				progress = await UserProgress.create({
+					user_id: user.dataValues.id,
+					quiz_id: Number(quizId),
+					is_completed: true,
+					score,
+					earned_coins: earned_coins,
+					completed_at: new Date(),
+					status: 'pending',
+				});
+			} else {
+				// обновляем только если результат лучше
+				if (score > progress.score) {
+					progress.score = score;
+					progress.earned_coins = earned_coins;
+					progress.is_completed = true;
+					progress.completed_at = new Date();
+					await progress.save();
+				}
+			}
+
+			// Начисляем монеты пользователю
+			await user.increment('coins', { by: earned_coins });
+
+			// Добавляем запись в кошелек
+			await WalletTransaction.create({
+				user_id: user.dataValues.id,
+				type: 'credit',
+				amount: earned_coins,
+				source: 'quiz',
+				meta: { quiz_id: Number(quizId) },
+			});
+
+			return res.json({
+				success: true,
+				message: 'Прогресс сохранён',
+				data: progress,
+			});
+		} catch (error) {
+			console.error(error);
+			res
+				.status(500)
+				.json({ success: false, message: 'Ошибка сохранения прогресса' });
 		}
 	}
 

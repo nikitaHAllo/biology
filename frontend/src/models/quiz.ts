@@ -99,3 +99,8 @@ export interface SubmitQuizResponse {
 	result: QuizResult;
 }
 
+export interface CompleteQuizPayload {
+	telegramId: number;
+	score: number;
+	earned_coins: number;
+}
