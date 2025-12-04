@@ -13,7 +13,7 @@ export interface Topic {
 	title: string;
 	slug: string;
 	description: string;
-	price_repcoins: number;
+	price: number;
 	is_purchased?: boolean;
 	purchased_at?: string | null;
 	order: number;
@@ -36,7 +36,7 @@ export interface TopicWithMaterials extends Topic {
 }
 
 export interface SectionWithTopics extends Section {
-	topics: Topic[];
+	topics: TopicWithMaterials[];
 }
 
 export interface MaterialsCatalogResponse {
