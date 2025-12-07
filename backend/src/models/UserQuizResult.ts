@@ -1,29 +1,32 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '../db/sequelize';
-
-interface UserTaskResultAttributes {
+interface UserQuizResultAttributes {
 	id: number;
 	user_id: number;
-	task_id: number;
-	is_correct: boolean;
+	quiz_id: number;
+	score: number;
+	earned_coins: number;
+	is_passed: boolean;
 	submitted_at: Date;
 }
 
-interface UserTaskResultCreationAttributes
-	extends Optional<UserTaskResultAttributes, 'id' | 'submitted_at'> {}
+interface UserQuizResultCreationAttributes
+	extends Optional<UserQuizResultAttributes, 'id' | 'submitted_at'> {}
 
-export class UserTaskResult
-	extends Model<UserTaskResultAttributes, UserTaskResultCreationAttributes>
-	implements UserTaskResultAttributes
+export class UserQuizResult
+	extends Model<UserQuizResultAttributes, UserQuizResultCreationAttributes>
+	implements UserQuizResultAttributes
 {
 	public id!: number;
 	public user_id!: number;
-	public task_id!: number;
-	public is_correct!: boolean;
+	public quiz_id!: number;
+	public score!: number;
+	public earned_coins!: number;
+	public is_passed!: boolean;
 	public submitted_at!: Date;
 }
 
-UserTaskResult.init(
+UserQuizResult.init(
 	{
 		id: {
 			type: DataTypes.INTEGER,
@@ -33,20 +36,20 @@ UserTaskResult.init(
 		user_id: {
 			type: DataTypes.INTEGER,
 			allowNull: false,
-			references: {
-				model: 'users',
-				key: 'id',
-			},
 		},
-		task_id: {
+		quiz_id: {
 			type: DataTypes.INTEGER,
 			allowNull: false,
-			references: {
-				model: 'tasks',
-				key: 'id',
-			},
 		},
-		is_correct: {
+		score: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+		},
+		earned_coins: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+		},
+		is_passed: {
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 		},
@@ -58,7 +61,7 @@ UserTaskResult.init(
 	},
 	{
 		sequelize,
-		tableName: 'user_task_results',
+		tableName: 'user_quiz_results',
 		underscored: true,
 		timestamps: true,
 		createdAt: 'submitted_at',

@@ -91,9 +91,12 @@ class ApiService {
 		return response.data.data;
 	}
 
-	async getQuizzesList(): Promise<Quiz[]> {
+	async getQuizzesList(telegramId?: string | number): Promise<Quiz[]> {
+		const config = telegramId ? { params: { telegramId } } : {};
+
 		const response = await this.api.get<ApiResponse<QuizzesListResponse>>(
-			'/quizzes'
+			'/quizzes',
+			config
 		);
 		return response.data.data.quizzes;
 	}

@@ -84,7 +84,7 @@ const Home: React.FC = () => {
 				setError(null);
 				const [catalog, quizzes, tasks] = await Promise.all([
 					apiService.getMaterialsCatalog(user?.id),
-					apiService.getQuizzesList(),
+					apiService.getQuizzesList(user?.id),
 					apiService.getDownloadableTasks(),
 				]);
 

@@ -117,7 +117,7 @@ const Profile: React.FC = () => {
 									>
 										{isLoading
 											? '...'
-											: `Уроки: ${stats?.completed_lessons || 0}/${
+											: `Тесты: ${stats?.completed_lessons || 0}/${
 													stats?.total_lessons || 0
 											  }`}
 									</Skeleton>

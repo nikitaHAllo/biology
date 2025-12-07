@@ -5,7 +5,7 @@ import {
 	Course,
 	Lesson,
 	Task,
-	UserTaskResult,
+	UserQuizResult,
 	UserProgress,
 	Achievement,
 	UserAchievement,

@@ -13,7 +13,7 @@ import { sequelize } from '../db/sequelize';
 import { WalletTransaction } from './WalletTransaction';
 import { UserProgress } from './UserProgress';
 import { UserAchievement } from './UserAchievement';
-import { UserTaskResult } from './UserTaskResult';
+import { UserQuizResult } from './UserQuizResult';
 import { AssignmentSubmission } from './AssignmentSubmission';
 
 interface UserAttributes {
@@ -63,14 +63,14 @@ export class User
 	public countAchievements!: HasManyCountAssociationsMixin;
 	public createAchievement!: HasManyCreateAssociationMixin<UserAchievement>;
 
-	public getTaskResults!: HasManyGetAssociationsMixin<UserTaskResult>;
+	public getQuizResults!: HasManyGetAssociationsMixin<UserQuizResult>;
 	public getSubmissions!: HasManyGetAssociationsMixin<AssignmentSubmission>;
 
 	// Association properties
 	public readonly transactions?: WalletTransaction[];
 	public readonly progress?: UserProgress[];
 	public readonly achievements?: UserAchievement[];
-	public readonly taskResults?: UserTaskResult[];
+	public readonly quizResults?: UserQuizResult[];
 	public readonly submissions?: AssignmentSubmission[];
 
 	// Static associations
@@ -78,7 +78,7 @@ export class User
 		transactions: Association<User, WalletTransaction>;
 		progress: Association<User, UserProgress>;
 		achievements: Association<User, UserAchievement>;
-		taskResults: Association<User, UserTaskResult>;
+		quizResults: Association<User, UserQuizResult>;
 		submissions: Association<User, AssignmentSubmission>;
 	};
 }

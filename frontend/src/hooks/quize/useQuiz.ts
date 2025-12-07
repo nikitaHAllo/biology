@@ -3,12 +3,13 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import type { Quiz, QuizQuestion } from '../../models';
 import { apiService } from '../../api';
 
-
 export type AnswerState = 'idle' | 'correct' | 'incorrect' | 'timeout';
 
 export const useQuiz = (user: { id: number } | null) => {
-	// Основные состояния
-	const [quizzes, setQuizzes] = useState<Quiz[]>([]); // ← все тесты
+	const [activeList, setActiveList] = useState<'new' | 'completed'>('new');
+
+	const [newQuizzes, setNewQuizzes] = useState<Quiz[]>([]);
+	const [completedQuizzes, setCompletedQuizzes] = useState<Quiz[]>([]);
 	const [quiz, setQuiz] = useState<Quiz | null>(null); // ← текущий тест
 	const [currentQuizIndex, setCurrentQuizIndex] = useState(0); // ← индекс текущего теста
 
@@ -23,92 +24,82 @@ export const useQuiz = (user: { id: number } | null) => {
 	>({});
 	const [coins, setCoins] = useState(0);
 	const [isFinished, setIsFinished] = useState(false);
-
+	const currentList = activeList === 'new' ? newQuizzes : completedQuizzes;
 	const currentQuestion = quiz?.questions[currentQuestionIndex];
 	const totalQuestions = quiz?.questions.length ?? 0;
-	const totalQuizzes = quizzes.length;
+	const totalQuizzes = currentList.length;
 
 	// --------------------------
 	// LOAD QUIZZES
 	// --------------------------
-	useEffect(() => {
-		const load = async () => {
-			try {
-				setIsLoading(true);
-				setError(null);
 
-				const list = await apiService.getQuizzesList();
-				console.log('Тесты:', list);
+	const loadQuizzes = useCallback(async () => {
+		try {
+			setIsLoading(true);
+			setError(null);
 
-				if (!list || list.length === 0) {
-					setError('Нет доступных тестов');
-					return;
-				}
+			const list = await apiService.getQuizzesList(user?.id);
+			console.log('Тесты:', list);
 
-				setQuizzes(list);
+			const newList = list.filter(q => !q.is_completed);
+			const completedList = list.filter(q => q.is_completed);
 
-				// Загружаем первый тест
-				const first = list[0];
-				const details = await apiService.getQuizDetails(first.id);
-				setQuiz(details);
-				setCurrentQuizIndex(0);
-			} catch {
-				setError('Ошибка загрузки тестов');
-			} finally {
-				setIsLoading(false);
+			setNewQuizzes(newList);
+			setCompletedQuizzes(completedList);
+
+			setActiveList('new');
+
+			if (!list || list.length === 0) {
+				setError('Нет доступных тестов');
+				return;
 			}
-		};
 
-		load();
-	}, []);
+			const first = list.find(q => !q.is_completed) || list[0];
+			const details = await apiService.getQuizDetails(first.id);
+			setQuiz(details);
+			setCurrentQuizIndex(0);
+		} catch {
+			setError('Ошибка загрузки тестов');
+		} finally {
+			setIsLoading(false);
+		}
+	}, [user?.id]);
+
+	// ЗАМЕНИТЕ текущий useEffect на этот:
+	useEffect(() => {
+		loadQuizzes();
+	}, [loadQuizzes]);
 
 	// --------------------------
 	// SWITCH QUIZ FUNCTIONS
 	// --------------------------
 	const switchQuiz = useCallback(
 		async (quizId: number) => {
-			try {
-				setIsLoading(true);
+			const quizDetails = await apiService.getQuizDetails(quizId);
+			setQuiz(quizDetails);
 
-				const quizDetails = await apiService.getQuizDetails(quizId);
-				setQuiz(quizDetails);
+			const newIndex = currentList.findIndex(q => q.id === quizId);
+			if (newIndex !== -1) setCurrentQuizIndex(newIndex);
 
-				// Находим индекс выбранного теста
-				const newIndex = quizzes.findIndex(q => q.id === quizId);
-				if (newIndex !== -1) {
-					setCurrentQuizIndex(newIndex);
-				}
-
-				// Сбрасываем состояние теста
-				resetQuizState();
-			} catch {
-				setError('Ошибка загрузки теста');
-			} finally {
-				setIsLoading(false);
-			}
+			resetQuizState();
 		},
-		[quizzes]
+		[currentList]
 	);
 
 	const nextQuiz = useCallback(async () => {
-		if (currentQuizIndex >= totalQuizzes - 1) {
-			console.log('Это последний тест');
-			return;
-		}
+		if (currentQuizIndex >= totalQuizzes - 1) return;
 
-		const nextQuizId = quizzes[currentQuizIndex + 1].id;
+		const nextQuizId = currentList[currentQuizIndex + 1].id;
 		await switchQuiz(nextQuizId);
-	}, [currentQuizIndex, totalQuizzes, quizzes, switchQuiz]);
+	}, [currentQuizIndex, totalQuizzes, currentList, switchQuiz]);
 
+	// PREVIOUS QUIZ
 	const prevQuiz = useCallback(async () => {
-		if (currentQuizIndex <= 0) {
-			console.log('Это первый тест');
-			return;
-		}
+		if (currentQuizIndex <= 0) return;
 
-		const prevQuizId = quizzes[currentQuizIndex - 1].id;
+		const prevQuizId = currentList[currentQuizIndex - 1].id;
 		await switchQuiz(prevQuizId);
-	}, [currentQuizIndex, quizzes, switchQuiz]);
+	}, [currentQuizIndex, currentList, switchQuiz]);
 
 	const resetQuizState = () => {
 		setCurrentQuestionIndex(0);
@@ -174,6 +165,20 @@ export const useQuiz = (user: { id: number } | null) => {
 		}));
 	};
 
+	const switchList = async (listName: 'new' | 'completed') => {
+		setActiveList(listName);
+
+		const list = listName === 'new' ? newQuizzes : completedQuizzes;
+		if (list.length === 0) return;
+
+		setCurrentQuizIndex(0);
+
+		// загрузить новый квиз
+		const details = await apiService.getQuizDetails(list[0].id);
+		setQuiz(details);
+		resetQuizState();
+	};
+
 	const finishQuiz = async () => {
 		if (!quiz || !user) return;
 
@@ -187,6 +192,7 @@ export const useQuiz = (user: { id: number } | null) => {
 		});
 		console.log(result);
 		setCoins(result.earned_coins);
+		await loadQuizzes();
 	};
 
 	const next = () => {
@@ -225,17 +231,21 @@ export const useQuiz = (user: { id: number } | null) => {
 	}, [currentQuizIndex]);
 
 	const quizzesInfo = useMemo(() => {
-		return quizzes.map((q, index) => ({
+		return currentList.map((q, index) => ({
 			id: q.id,
 			title: q.title,
 			description: q.description,
 			isCurrent: index === currentQuizIndex,
 		}));
-	}, [quizzes, currentQuizIndex]);
+	}, [currentList, currentQuizIndex]);
 
 	return {
 		// Данные
 		quiz,
+		newQuizzes,
+		completedQuizzes,
+		activeList,
+		switchList,
 		quizzes: quizzesInfo,
 		currentQuizIndex,
 		totalQuizzes,

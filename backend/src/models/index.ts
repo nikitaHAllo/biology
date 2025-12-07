@@ -4,18 +4,14 @@ import { WalletTransaction } from './WalletTransaction';
 import { Course } from './Course';
 import { Lesson } from './Lesson';
 import { Task } from './Task';
-import { UserTaskResult } from './UserTaskResult';
+import { UserQuizResult } from './UserQuizResult';
 import { UserProgress } from './UserProgress';
 import { Achievement } from './Achievement';
 import { UserAchievement } from './UserAchievement';
 import { Assignment } from './Assignment';
 import { AssignmentSubmission } from './AssignmentSubmission';
 import { AssignmentReview } from './AssignmentReview';
-import {
-	MaterialSection,
-	MaterialTopic,
-	MaterialFile,
-} from './Material';
+import { MaterialSection, MaterialTopic, MaterialFile } from './Material';
 import { Quiz, QuizQuestion, QuizOption } from './Quiz';
 import {
 	DownloadableTask,
@@ -28,9 +24,25 @@ import { UserMaterialAccess } from './UserMaterialAccess';
 User.hasMany(WalletTransaction, { foreignKey: 'user_id', as: 'transactions' });
 WalletTransaction.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-User.hasMany(UserTaskResult, { foreignKey: 'user_id', as: 'taskResults' });
-UserTaskResult.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
-UserTaskResult.belongsTo(Task, { foreignKey: 'task_id', as: 'task' });
+// --- USER <-> USER_QUIZ_RESULTS ---
+User.hasMany(UserQuizResult, {
+	foreignKey: 'user_id',
+	as: 'quizResults',
+});
+UserQuizResult.belongsTo(User, {
+	foreignKey: 'user_id',
+	as: 'user',
+});
+
+// --- QUIZ <-> USER_QUIZ_RESULTS ---
+Quiz.hasMany(UserQuizResult, {
+	foreignKey: 'quiz_id',
+	as: 'results',
+});
+UserQuizResult.belongsTo(Quiz, {
+	foreignKey: 'quiz_id',
+	as: 'quiz',
+});
 
 // ВАЖНО: Связь UserProgress с User и Lesson
 User.hasMany(UserProgress, { foreignKey: 'user_id', as: 'progress' });
@@ -62,7 +74,6 @@ Task.belongsTo(Lesson, { foreignKey: 'lesson_id', as: 'lesson' });
 Lesson.hasMany(Assignment, { foreignKey: 'lesson_id', as: 'assignments' });
 Assignment.belongsTo(Lesson, { foreignKey: 'lesson_id', as: 'lesson' });
 
-Task.hasMany(UserTaskResult, { foreignKey: 'task_id', as: 'userResults' });
 
 Achievement.hasMany(UserAchievement, {
 	foreignKey: 'achievement_id',
@@ -166,7 +177,7 @@ export {
 	Course,
 	Lesson,
 	Task,
-	UserTaskResult,
+	UserQuizResult,
 	UserProgress,
 	Achievement,
 	UserAchievement,
