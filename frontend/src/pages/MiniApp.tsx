@@ -1,46 +1,162 @@
-import React, { useState } from 'react';
-// import { api } from '../api';
+// frontend/src/pages/MiniApp.tsx
+import React from 'react';
+import {
+	Card,
+	Button,
+	Title,
+	Text,
+	ThemeIcon,
+	Container,
+	Stack,
+	Flex,
+	Box,
+} from '@mantine/core';
+import { Sprout, Dna, Biohazard, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const MiniApp: React.FC = () => {
-	const [telegramId, setTelegramId] = useState('');
-	const [username, setUsername] = useState('');
-	// const [result, setResult] = useState(null);
+export const ModulesPage: React.FC = () => {
+	const navigate = useNavigate();
 
-	// const register = async () => {
-	// 	try {
-	// 		const res = await api.registerUser({ telegram_id: telegramId, username });
-	// 		setResult(res.data);
-	// 	} catch {
-	// 		setResult('Ошибка при регистрации пользователя');
-	// 	}
-	// };
+	const modules = [
+		{
+			title: 'Биосадовник',
+			description:
+				'Выращивайте своё виртуальное растение, прокачиваясь в биологии.',
+			icon: <Sprout size={40} color='green' />,
+			path: '/biogarden',
+			color: 'green',
+		},
+		{
+			title: 'Генетический калькулятор',
+			description: 'Решайте генетические задачи в интерактивном формате.',
+			icon: <Dna size={40} color='blue' />,
+			path: '/genetics',
+			color: 'blue',
+		},
+		{
+			title: 'Вирусный детектив',
+			description:
+				'Узнайте, какой патоген вызвал заболевание, анализируя симптомы.',
+			icon: <Biohazard size={40} color='red' />,
+			path: '/virus',
+			color: 'red',
+		},
+	];
 
 	return (
-		<div style={{ padding: 20 }}>
-			<h2>Mini App — регистрация пользователя</h2>
-			<div style={{ marginBottom: 8 }}>
-				<input
-					placeholder='telegram_id'
-					value={telegramId}
-					onChange={e => setTelegramId(e.target.value)}
-				/>
-			</div>
-			<div style={{ marginBottom: 8 }}>
-				<input
-					placeholder='username'
-					value={username}
-					onChange={e => setUsername(e.target.value)}
-				/>
-			</div>
-			{/* <button onClick={register}>Зарегистрироваться / Обновить</button> */}
+		<Container size='lg' p='md'>
+			<Flex justify='space-between' align='center' mb='xl'>
+				<div>
+					<Title order={1}>Игровые модули</Title>
+					<Text c='dimmed' size='sm' mt={4}>
+						Выберите игру, чтобы начать
+					</Text>
+				</div>
 
-			{/* {result && (
-				<pre style={{ marginTop: 12, background: '#f5f5f5', padding: 8 }}>
-					{JSON.stringify(result, null, 2)}
-				</pre>
-			)} */}
-		</div>
+				<ThemeIcon size='xl' radius='md' color='blue'>
+					<Sprout size={24} />
+				</ThemeIcon>
+			</Flex>
+
+			{/* Карточки */}
+			<Stack gap='lg' align='center'>
+				{modules.map((m, i) => (
+					<Box key={i} maw={500} w='100%'>
+						<Card
+							onClick={() => navigate(m.path)}
+							shadow='md'
+							radius='xl'
+							p='lg'
+							style={{
+								cursor: 'pointer',
+								border: '1px solid var(--mantine-color-gray-3)',
+								backgroundColor: 'var(--mantine-color-body)',
+							}}
+						>
+							<Flex align='center' gap='md'>
+								<ThemeIcon
+									size={60}
+									radius='md'
+									color={m.color}
+									variant='light'
+								>
+									{m.icon}
+								</ThemeIcon>
+
+								<Box style={{ flex: 1 }}>
+									<Title order={3} mb={4}>
+										{m.title}
+									</Title>
+									<Text size='sm' c='dimmed'>
+										{m.description}
+									</Text>
+								</Box>
+							</Flex>
+						</Card>
+					</Box>
+				))}
+			</Stack>
+		</Container>
 	);
 };
 
-export default MiniApp;
+const GameWrapper: React.FC<{ title: string; children: React.ReactNode }> = ({
+	title,
+	children,
+}) => {
+	const navigate = useNavigate();
+
+	return (
+		<Container size='lg' p='md'>
+			<Stack gap='md'>
+				<Button
+					leftSection={<ArrowLeft size={16} />}
+					onClick={() => navigate(-1)}
+					variant='light'
+					style={{ alignSelf: 'flex-start', marginTop: 8 }}
+				>
+					Назад
+				</Button>
+
+				<Title order={1}>{title}</Title>
+
+				<Box
+					p='md'
+					style={{
+						borderRadius: 'var(--mantine-radius-md)',
+						border: '1px solid var(--mantine-color-gray-3)',
+					}}
+				>
+					{children}
+				</Box>
+			</Stack>
+		</Container>
+	);
+};
+
+// Игры
+export const BioGardenGame = () => (
+	<GameWrapper title='🎍 Биосадовник'>
+		<Text size='lg' p='md'>
+			Выращивайте своё виртуальное растение, изучая биологию!
+		</Text>
+	</GameWrapper>
+);
+
+export const GeneticCalculator = () => (
+	<GameWrapper title='🧬 Генетический калькулятор'>
+		<Text size='lg' p='md'>
+			Решайте генетические задачи интерактивно!
+		</Text>
+	</GameWrapper>
+);
+
+export const VirusDetectiveGame = () => (
+	<GameWrapper title='🦠 Вирусный детектив'>
+		<Text size='lg' p='md'>
+			Анализируйте симптомы и определяйте патоген!
+		</Text>
+	</GameWrapper>
+);
+
+export default ModulesPage;
