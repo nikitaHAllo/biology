@@ -90,13 +90,13 @@ const materialsSeed: MaterialSeed[] = [
 				files: [
 					{
 						name: 'Конспект по органоидам',
-						file_url: '/downloads/organelles.pdf',
+						file_url: '/api/downloads/organelles.pdf',
 						file_type: 'pdf',
 						file_size: 1.2,
 					},
 					{
 						name: 'Таблица “Органоид — функция”',
-						file_url: '/downloads/organelles.docx',
+						file_url: '/api/downloads/organelles.docx',
 						file_type: 'word',
 						file_size: 0.6,
 					},
@@ -111,7 +111,7 @@ const materialsSeed: MaterialSeed[] = [
 				files: [
 					{
 						name: 'Чек-лист стадий митоза',
-						file_url: '/downloads/mitosis.pdf',
+						file_url: '/api/downloads/mitosis.pdf',
 						file_type: 'pdf',
 						file_size: 0.8,
 					},
@@ -135,13 +135,13 @@ const materialsSeed: MaterialSeed[] = [
 				files: [
 					{
 						name: 'Схема кровообращения',
-						file_url: '/downloads/blood-system.pdf',
+						file_url: '/api/downloads/blood-system.pdf',
 						file_type: 'pdf',
 						file_size: 1.5,
 					},
 					{
 						name: 'Практикум по измерению пульса',
-						file_url: '/downloads/pulse.docx',
+						file_url: '/api/downloads/pulse.docx',
 						file_type: 'word',
 						file_size: 0.9,
 					},
@@ -156,13 +156,13 @@ const materialsSeed: MaterialSeed[] = [
 				files: [
 					{
 						name: 'Презентация по рефлексам',
-						file_url: '/downloads/reflexes.pdf',
+						file_url: '/api/downloads/reflexes.pdf',
 						file_type: 'pdf',
 						file_size: 2.1,
 					},
 					{
 						name: 'Сводка нервных центров',
-						file_url: '/downloads/nerve-centers.docx',
+						file_url: '/api/downloads/nerve-centers.docx',
 						file_type: 'word',
 						file_size: 1.0,
 					},
@@ -186,7 +186,7 @@ const materialsSeed: MaterialSeed[] = [
 				files: [
 					{
 						name: 'Карточки по биомам',
-						file_url: '/downloads/biomes.pdf',
+						file_url: '/api/downloads/biomes.pdf',
 						file_type: 'pdf',
 						file_size: 0.7,
 					},
@@ -201,13 +201,13 @@ const materialsSeed: MaterialSeed[] = [
 				files: [
 					{
 						name: 'Методичка “Городская экология”',
-						file_url: '/downloads/urban-ecology.pdf',
+						file_url: '/api/downloads/urban-ecology.pdf',
 						file_type: 'pdf',
 						file_size: 1.1,
 					},
 					{
 						name: 'Практические задания',
-						file_url: '/downloads/eco-practice.zip',
+						file_url: '/api/downloads/eco-practice.zip',
 						file_type: 'zip',
 						file_size: 4.2,
 					},

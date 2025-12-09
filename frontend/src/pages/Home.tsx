@@ -1,8 +1,8 @@
 import { Container, Stack } from '@mantine/core';
-import { MaterialsSection } from './MaterialsSection';
-import { FeaturedQuiz } from './FeaturedQuiz';
-import { TasksSection } from './TasksSection';
-import { useHomeData } from '../../hooks/useHomeData';
+import { MaterialsSection } from '../components/home/MaterialsSection';
+import { FeaturedQuiz } from '../components/home/FeaturedQuiz';
+import { TasksSection } from '../components/home/TasksSection';
+import { useHomeData } from '../hooks/home/useHomeData';
 
 export default function Home() {
 	const {

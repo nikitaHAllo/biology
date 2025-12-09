@@ -1,80 +1,142 @@
-import { Card, Stack, Group, Text, Badge, Button } from '@mantine/core';
-import { IconCoin, IconDownload } from '@tabler/icons-react';
+import {
+	Card,
+	Stack,
+	Group,
+	Text,
+	Badge,
+	Button,
+	Tooltip,
+} from '@mantine/core';
+import {
+	IconCoin,
+	IconDownload,
+	IconLock,
+	IconLockOpen,
+} from '@tabler/icons-react';
+import { useFileDownload } from '../../hooks/home/useFileDownload';
 
-interface TopicFile {
-	id: number | string;
-	name: string;
-	file_type: string;
-	file_size?: number;
-	file_url: string;
-}
-
-interface Topic {
-	id: number | string;
-	title: string;
-	description: string;
-	price: number;
-	files: TopicFile[];
-}
+import { useTelegram } from '../../hooks/useTelegram';
+import type { Topic } from '../../models';
+import { useState } from 'react';
+import { useTopicPurchase } from '../../hooks/home/useTopicPurchase';
 
 interface TopicCardProps {
 	topic: Topic;
-}
-function useHomeLogic(topic: Topic) {
-	return {
-		isUnlocked: true,
-		numericTopicId: topic.id,
-		topicFiles: topic.files,
-		topicTitle: topic.title,
-		topicDescription: topic.description,
-		topicPrice: topic.price,
-		purchaseLoading: null as number | null,
-		handlePurchase: (t: Topic) => console.log('Purchase', t),
-	};
+	onPurchaseSuccess?: (newBalance: number) => void;
+	userBalance?: number | null;
 }
 
-export function TopicCard({ topic }: TopicCardProps) {
-	const {
-		isUnlocked,
-		numericTopicId,
-		topicFiles,
-		topicTitle,
-		topicDescription,
-		topicPrice,
-		purchaseLoading,
-		handlePurchase,
-	} = useHomeLogic(topic);
+export function TopicCard({
+	topic,
+	onPurchaseSuccess,
+	userBalance,
+}: TopicCardProps) {
+	const { downloadFile, downloading } = useFileDownload();
+	const { purchaseTopic, purchasingTopicId } = useTopicPurchase();
+	const { user } = useTelegram();
+
+	const telegramId = user?.id;
+
+	// Локальное состояние для мгновенного обновления UI
+	const [isUnlocked, setIsUnlocked] = useState(topic.is_purchased);
+
+	// Проверяем, хватает ли денег на покупку
+	const hasEnoughMoney = userBalance && userBalance >= topic.price_repcoins;
+
+	// Обработчик покупки темы
+	const handlePurchase = async () => {
+		if (!telegramId) {
+			// Можно показать уведомление, что нужно авторизоваться
+			return;
+		}
+
+		if (isUnlocked) {
+			// Тема уже открыта - ничего не делаем
+			return;
+		}
+
+		// Проверяем баланс (если он загружен)
+		if (userBalance !== null && !hasEnoughMoney) {
+			// Показываем сообщение о недостатке средств
+			return;
+		}
+
+		// Покупаем тему
+		const success = await purchaseTopic(telegramId, topic, onPurchaseSuccess);
+
+		// Если покупка успешна, сразу обновляем UI
+		if (success) {
+			setIsUnlocked(true);
+		}
+	};
+
+	// Определяем текст и иконку для кнопки
+	const getButtonText = () => {
+		if (isUnlocked) {
+			return 'Открыть';
+		}
+		return `Купить и открыть (${topic.price_repcoins} реп.)`;
+	};
+
+	const getButtonIcon = () => {
+		if (isUnlocked) {
+			return <IconLockOpen size={16} />;
+		}
+		return <IconLock size={16} />;
+	};
+
+	// Определяем, должна ли кнопка быть disabled
+	const isButtonDisabled =
+		!isUnlocked && userBalance !== null && !hasEnoughMoney;
 
 	return (
 		<Card withBorder radius='md' padding='lg' shadow='sm'>
 			<Stack gap='xs'>
 				<Group justify='space-between' align='flex-start'>
 					<div>
-						<Text fw={600}>{topicTitle}</Text>
+						<Text fw={600}>{topic.title}</Text>
 						<Text c='dimmed' size='sm'>
-							{topicDescription}
+							{topic.description}
 						</Text>
 					</div>
 					<Badge
 						color={isUnlocked ? 'teal' : 'gray'}
 						leftSection={<IconCoin size={14} />}
 					>
-						{topicPrice} реп.
+						{topic.price_repcoins} реп.
 					</Badge>
 				</Group>
 
-				<Button
-					variant={isUnlocked ? 'light' : 'filled'}
-					color={isUnlocked ? 'teal' : 'blue'}
-					onClick={() => handlePurchase(topic)}
-					loading={purchaseLoading === numericTopicId}
+				<Tooltip
+					label={
+						isButtonDisabled
+							? `Недостаточно средств. Нужно еще ${
+									topic.price_repcoins - (userBalance || 0)
+							  } репкоинов`
+							: ''
+					}
+					disabled={!isButtonDisabled}
+					position='top'
 				>
-					{isUnlocked ? 'Открыть' : 'Купить и открыть'}
-				</Button>
+					<Button
+						variant={isUnlocked ? 'light' : 'filled'}
+						color={isUnlocked ? 'teal' : 'blue'}
+						onClick={handlePurchase}
+						loading={purchasingTopicId === topic.id}
+						leftSection={getButtonIcon()}
+						disabled={isButtonDisabled}
+						fullWidth
+					>
+						{getButtonText()}
+					</Button>
+				</Tooltip>
 
-				{isUnlocked && topicFiles.length > 0 && (
+				{isUnlocked && topic.files && topic.files.length > 0 && (
 					<Stack gap='xs'>
-						{topicFiles.map(file => (
+						<Text size='sm' fw={500} c='dimmed'>
+							Доступные файлы:
+						</Text>
+						{topic.files.map(file => (
 							<Group key={file.id} justify='space-between' align='flex-start'>
 								<div>
 									<Text size='sm' fw={500}>
@@ -95,15 +157,20 @@ export function TopicCard({ topic }: TopicCardProps) {
 									size='xs'
 									variant='subtle'
 									leftSection={<IconDownload size={14} />}
-									component='a'
-									href={file.file_url}
-									target='_blank'
+									loading={downloading === file.id.toString()}
+									onClick={() => downloadFile(file)}
 								>
 									Скачать
 								</Button>
 							</Group>
 						))}
 					</Stack>
+				)}
+
+				{!isUnlocked && (
+					<Text size='xs' c='dimmed' ta='center'>
+						Для доступа к файлам купите тему
+					</Text>
 				)}
 			</Stack>
 		</Card>

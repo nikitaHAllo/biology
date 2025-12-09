@@ -8,6 +8,8 @@ router.post('/topics/:topicId/purchase', (req, res) =>
 	materialsController.purchaseTopic(req, res)
 );
 
+router.get('/access/check', (req, res) =>
+	materialsController.checkTopicAccess(req, res)
+);
+
 export { router as materialsRouter };
-
-

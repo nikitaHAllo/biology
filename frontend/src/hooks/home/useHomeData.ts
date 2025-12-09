@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useTelegram } from './useTelegram';
-import { apiService } from '../api';
-import type { SectionWithTopics, Quiz, DownloadableTask } from '../models';
+import { useTelegram } from '../useTelegram';
+import { apiService } from '../../api';
+import type { SectionWithTopics, Quiz, DownloadableTask } from '../../models';
 
 interface UseHomeDataReturn {
 	isLoading: boolean;

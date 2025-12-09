@@ -7,16 +7,25 @@ export interface Section {
 	order: number;
 }
 
+export interface TopicFile {
+	id: number | string;
+	name: string;
+	file_type: string;
+	file_size?: number;
+	file_url: string;
+}
+
 export interface Topic {
 	id: number;
 	section_id: number;
 	title: string;
 	slug: string;
 	description: string;
-	price: number;
+	price_repcoins: number;
 	is_purchased?: boolean;
 	purchased_at?: string | null;
 	order: number;
+	files: TopicFile[];
 }
 
 export interface MaterialFile {
@@ -53,11 +62,21 @@ export interface PurchaseTopicResponse {
 	remaining_coins: number;
 }
 
+
+
 export interface PurchaseTopicResult {
+	is_purchased: boolean;
 	topic_id: number;
-	remaining_coins: number;
-	section?: string;
-	title?: string;
-	already_owned?: boolean;
+	purchased_at?: string;
+	new_balance: number;
+	price_paid?: number;
 }
 
+export interface TopicAccessCheck {
+	has_access: boolean;
+	is_purchased: boolean;
+	is_default_unlocked: boolean;
+	topic_id: number;
+	user_id: number;
+	purchased_at?: string;
+}

@@ -139,6 +139,7 @@ class MaterialsController {
 
 			let user = await User.findOne({
 				where: { telegram_id: tgIdNum },
+				raw: true,
 			});
 
 			if (!user) {
@@ -148,6 +149,7 @@ class MaterialsController {
 
 			const topic = await MaterialTopic.findByPk(topicIdNum, {
 				include: [{ model: MaterialSection, as: 'section' }],
+				raw: true,
 			});
 
 			if (!topic) {
@@ -157,7 +159,7 @@ class MaterialsController {
 				});
 			}
 
-			const userId = Number(user.get('id'));
+			const userId = Number(user.id);
 			if (!Number.isInteger(userId) || userId <= 0) {
 				return res.status(400).json({
 					success: false,
@@ -165,7 +167,7 @@ class MaterialsController {
 				});
 			}
 
-			const topicIdSafe = Number(topic.get('id'));
+			const topicIdSafe = Number(topic.id);
 			if (!Number.isInteger(topicIdSafe) || topicIdSafe <= 0) {
 				return res.status(404).json({
 					success: false,
@@ -182,81 +184,175 @@ class MaterialsController {
 					success: true,
 					data: {
 						topic_id: topicIdSafe,
-						remaining_coins: user.get('coins'),
+						remaining_coins: user.coins,
 						already_owned: true,
 					},
 				});
 			}
+			if (topic.is_default_unlocked) {
+				// Создаем запись о доступе без списания монет
+				const access = await UserMaterialAccess.create({
+					user_id: user.id,
+					topic_id: topicIdNum,
+					purchased_at: new Date(),
+				});
 
-			const price = Number(topic.price_repcoins || 0);
+				return res.json({
+					success: true,
+					message: 'Тема открыта (бесплатная)',
+					data: {
+						is_purchased: true,
+						topic_id: topicIdNum,
+						purchased_at: access.purchased_at,
+						new_balance: user.coins,
+					},
+				});
+			}
 
-			await sequelize.transaction(async transaction => {
-				if (!topic.is_default_unlocked && price > 0) {
-					const userCoins = Number(user.get('coins')) || 0;
-					if (userCoins < price) {
-						throw new Error('Недостаточно средств');
-					}
+			// Проверяем баланс пользователя
+			const price = Number(topic.price_repcoins);
+			const userBalance = Number(user.coins);
 
-					await user.decrement('coins', {
-						by: price,
-						transaction,
-					});
+			if (userBalance < price) {
+				return res.status(400).json({
+					success: false,
+					message: 'Недостаточно репкоинов',
+					data: {
+						required: price,
+						current: userBalance,
+						shortage: price - userBalance,
+					},
+				});
+			}
 
-					await WalletTransaction.create(
-						{
-							user_id: userId,
-							type: 'debit',
-							amount: price,
-							source: 'material_purchase',
-							meta: {
-								topic_id: topicIdSafe,
-								topic_title: topic.title,
-							},
-						},
-						{ transaction }
-					);
-				}
+			// Начинаем транзакцию
+			const transaction = await sequelize.transaction();
 
-				await UserMaterialAccess.create(
+			try {
+				// 1. Списываем монеты с баланса пользователя
+				const newBalance = userBalance - price;
+				await User.update(
+					{ coins: newBalance },
 					{
-						user_id: userId,
-						topic_id: topicIdSafe,
+						where: { id: userId },
+						transaction,
+					}
+				);
+
+				// 2. Создаем запись о доступе
+				const access = await UserMaterialAccess.create(
+					{
+						user_id: user.id,
+						topic_id: topicIdNum,
+						purchased_at: new Date(),
 					},
 					{ transaction }
 				);
+
+				// 3. Создаем транзакцию в кошельке
+				await WalletTransaction.create(
+					{
+						user_id: user.id,
+						type: 'debit', // Списание
+						amount: price,
+						source: 'material_purchase',
+						meta: {
+							topic_id: topicIdNum,
+							topic_title: topic.title,
+							price: price,
+						},
+					},
+					{ transaction }
+				);
+
+				// 4. Коммитим транзакцию
+				await transaction.commit();
+
+				res.json({
+					success: true,
+					message: 'Тема успешно куплена',
+					data: {
+						is_purchased: true,
+						topic_id: topicIdNum,
+						purchased_at: access.purchased_at,
+						new_balance: newBalance,
+						price_paid: price,
+					},
+				});
+			} catch (transactionError) {
+				// Откатываем транзакцию в случае ошибки
+				await transaction.rollback();
+				throw transactionError;
+			}
+		} catch (error) {
+			console.error('Error purchasing topic:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Ошибка при покупке темы',
+			});
+		}
+	}
+
+	async checkTopicAccess(req: Request, res: Response) {
+		try {
+			const { telegramId, topicId } = req.query;
+
+			if (!telegramId || !topicId) {
+				return res.status(400).json({
+					success: false,
+					message: 'Не указаны необходимые параметры',
+				});
+			}
+
+			const user = await User.findOne({
+				where: { telegram_id: Number(telegramId) },
+				raw: true,
 			});
 
-			await user.reload();
+			if (!user) {
+				return res.status(404).json({
+					success: false,
+					message: 'Пользователь не найден',
+				});
+			}
 
-			const topicPlain = topic.get({
-				plain: true,
-			}) as MaterialTopic & { section?: MaterialSection };
+			const topic = await MaterialTopic.findByPk(Number(topicId));
+			if (!topic) {
+				return res.status(404).json({
+					success: false,
+					message: 'Тема не найдена',
+				});
+			}
+
+			// Проверяем доступ
+			const access = await UserMaterialAccess.findOne({
+				where: {
+					user_id: user.id,
+					topic_id: topic.id,
+				},
+			});
+
+			const hasAccess = !!access || topic.is_default_unlocked;
 
 			res.json({
 				success: true,
 				data: {
-					topic_id: topicIdSafe,
-					remaining_coins: user.get('coins'),
-					section: topicPlain.section?.title,
-					title: topicPlain.title,
+					has_access: hasAccess,
+					is_purchased: !!access,
+					is_default_unlocked: topic.is_default_unlocked,
+					topic_id: topic.id,
+					user_id: user.id,
+					purchased_at: access?.purchased_at || null,
 				},
 			});
 		} catch (error) {
-			if (error instanceof Error && error.message === 'Недостаточно средств') {
-				return res.status(400).json({
-					success: false,
-					message: error.message,
-				});
-			}
-			console.error('Error purchasing topic:', error);
+			console.error('Error checking topic access:', error);
 			res.status(500).json({
 				success: false,
-				message: 'Не удалось выполнить покупку темы',
+				message: 'Ошибка при проверке доступа',
 			});
 		}
 	}
 }
 
 export const materialsController = new MaterialsController();
-
-

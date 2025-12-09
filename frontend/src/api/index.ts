@@ -20,6 +20,7 @@ import type {
 } from '../models';
 import type { CompleteQuizResponse } from '../models/task';
 import type { CompleteQuizPayload } from '../models/quiz';
+import type { TopicAccessCheck } from '../models/material';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -75,6 +76,19 @@ class ApiService {
 			'/materials/catalog',
 			{
 				params: telegramId ? { telegramId } : undefined,
+			}
+		);
+		return response.data.data;
+	}
+
+	async checkTopicAccess(
+		telegramId: number,
+		topicId: number
+	): Promise<TopicAccessCheck> {
+		const response = await this.api.get<ApiResponse<TopicAccessCheck>>(
+			'/materials/access/check',
+			{
+				params: { telegramId, topicId },
 			}
 		);
 		return response.data.data;
