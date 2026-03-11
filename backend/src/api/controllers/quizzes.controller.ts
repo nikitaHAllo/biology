@@ -107,7 +107,14 @@ class QuizzesController {
 		try {
 			const { quizId } = req.params;
 			const { telegramId, score, earned_coins } = req.body;
+
 			const quizIdNum = Number(quizId);
+			if (!Number.isInteger(quizIdNum) || quizIdNum <= 0) {
+				return res.status(400).json({
+					success: false,
+					message: 'Некорректный идентификатор викторины',
+				});
+			}
 
 			const scoreNum = Number(score);
 			const earnedCoinsNum = Number(earned_coins);
@@ -275,7 +282,15 @@ class QuizzesController {
 		try {
 			const { quizId } = req.params;
 
-			const quiz = await Quiz.findByPk(quizId, {
+			const quizIdNum = Number(quizId);
+			if (!Number.isInteger(quizIdNum) || quizIdNum <= 0) {
+				return res.status(400).json({
+					success: false,
+					message: 'Некорректный идентификатор викторины',
+				});
+			}
+
+			const quiz = await Quiz.findByPk(quizIdNum, {
 				include: [
 					{
 						model: QuizQuestion,
