@@ -13,6 +13,11 @@ import { AssignmentSubmission } from './AssignmentSubmission';
 import { AssignmentReview } from './AssignmentReview';
 import { MaterialSection, MaterialTopic, MaterialFile } from './Material';
 import { Quiz, QuizQuestion, QuizOption } from './Quiz';
+import { BioGardenPlant } from './BioGardenPlant';
+import { BioGardenQuestion } from './BioGardenQuestion';
+import { BioGardenAnswerOption } from './BioGardenAnswerOption';
+import { UserBioGardenProgress } from './UserBioGardenProgress';
+import { UserBioGardenAttempt } from './UserBioGardenAttempt';
 import {
 	DownloadableTask,
 	TaskCollection,
@@ -73,7 +78,6 @@ Task.belongsTo(Lesson, { foreignKey: 'lesson_id', as: 'lesson' });
 
 Lesson.hasMany(Assignment, { foreignKey: 'lesson_id', as: 'assignments' });
 Assignment.belongsTo(Lesson, { foreignKey: 'lesson_id', as: 'lesson' });
-
 
 Achievement.hasMany(UserAchievement, {
 	foreignKey: 'achievement_id',
@@ -170,6 +174,61 @@ TaskCollectionItem.belongsTo(DownloadableTask, {
 	foreignKey: 'task_id',
 	as: 'task',
 });
+BioGardenPlant.hasMany(BioGardenQuestion, {
+	foreignKey: 'plant_id',
+	as: 'questions',
+});
+BioGardenQuestion.belongsTo(BioGardenPlant, {
+	foreignKey: 'plant_id',
+	as: 'plant',
+});
+
+BioGardenQuestion.hasMany(BioGardenAnswerOption, {
+	foreignKey: 'question_id',
+	as: 'options',
+});
+BioGardenAnswerOption.belongsTo(BioGardenQuestion, {
+	foreignKey: 'question_id',
+	as: 'question',
+});
+
+User.hasMany(UserBioGardenProgress, {
+	foreignKey: 'user_id',
+	as: 'bioGardenProgress',
+});
+UserBioGardenProgress.belongsTo(User, {
+	foreignKey: 'user_id',
+	as: 'user',
+});
+
+UserBioGardenProgress.belongsTo(BioGardenPlant, {
+	foreignKey: 'plant_id',
+	as: 'plant',
+});
+
+BioGardenPlant.hasMany(UserBioGardenProgress, {
+	foreignKey: 'plant_id',
+	as: 'userProgress',
+});
+
+User.hasMany(UserBioGardenAttempt, {
+	foreignKey: 'user_id',
+	as: 'bioGardenAttempts',
+});
+UserBioGardenAttempt.belongsTo(User, {
+	foreignKey: 'user_id',
+	as: 'user',
+});
+
+UserBioGardenAttempt.belongsTo(BioGardenPlant, {
+	foreignKey: 'plant_id',
+	as: 'plant',
+});
+
+UserBioGardenAttempt.belongsTo(BioGardenQuestion, {
+	foreignKey: 'question_id',
+	as: 'question',
+});
 
 export {
 	User,
@@ -194,5 +253,10 @@ export {
 	TaskCollection,
 	TaskCollectionItem,
 	UserMaterialAccess,
+	BioGardenPlant,
+	BioGardenQuestion,
+	BioGardenAnswerOption,
+	UserBioGardenProgress,
+	UserBioGardenAttempt,
 	sequelize,
 };

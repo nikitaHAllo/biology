@@ -10,10 +10,10 @@ import Profile from './pages/Profile';
 
 // Игровые модули
 import ModulesPage, {
-	BioGardenGame,
 	GeneticCalculator,
 	VirusDetectiveGame,
 } from './pages/MiniApp';
+import { BioGardenGame } from './components/game/BioGardenGame';
 
 const App: React.FC = () => {
 	return (

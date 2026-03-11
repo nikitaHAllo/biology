@@ -14,6 +14,7 @@ import {
 	AssignmentReview,
 } from '../models';
 import { seedCatalogData } from './seedCatalog';
+import { seedBioGardenData } from './seedBiogarden';
 
 export async function initDatabase() {
 	try {
@@ -27,6 +28,8 @@ export async function initDatabase() {
 
 		await seedCatalogData();
 		console.log('✅ Catalog data ensured.');
+		 await seedBioGardenData();
+		console.log('✅ BioGardenData data ensured.');
 	} catch (error) {
 		console.error('❌ Unable to connect to the database:', error);
 		throw error;

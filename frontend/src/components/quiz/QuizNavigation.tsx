@@ -1,6 +1,6 @@
 // components/QuizNavigation.tsx
-import { Group, Button, Badge, Text, Tooltip } from '@mantine/core';
-import { IconArrowLeft, IconArrowRight, IconList } from '@tabler/icons-react';
+import { Group, Button, Badge, Text, Tooltip, Flex } from '@mantine/core';
+import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
 import { useState } from 'react';
 
 interface QuizNavigationProps {
@@ -30,41 +30,43 @@ export const QuizNavigation: React.FC<QuizNavigationProps> = ({
 	return (
 		<Group justify='center' gap='md'>
 			{/* Кнопка предыдущего теста */}
-			<Button
-				variant='light'
-				leftSection={<IconArrowLeft size={16} />}
-				onClick={onPrev}
-				disabled={currentQuizIndex === 0}
-				size='sm'
-			>
-				Предыдущий
-			</Button>
+			<Flex gap='sm' align='center'>
+				<Button
+					variant='light'
+					leftSection={<IconArrowLeft size={16} />}
+					onClick={onPrev}
+					disabled={currentQuizIndex === 0}
+					size='sm'
+				>
+					Предыдущий
+				</Button>
 
-			{/* Индикатор текущего теста */}
-			<Badge
-				variant='outline'
-				size='lg'
-				style={{ cursor: 'pointer' }}
-				onClick={() => quizzes.length > 0 && setShowList(!showList)}
-			>
-				<Group gap='xs'>
-					<Text fw={500}>
-						Тест {currentQuizIndex + 1} из {totalQuizzes}
-					</Text>
-					{quizzes.length > 0 && <IconList size={14} />}
-				</Group>
-			</Badge>
+				{/* Индикатор текущего теста */}
+				<Badge
+					variant='outline'
+					size='lg'
+					style={{ cursor: 'pointer' }}
+					onClick={() => quizzes.length > 0 && setShowList(!showList)}
+				>
+					<Group gap='xs'>
+						<Text fw={500}>
+							{currentQuizIndex + 1} из {totalQuizzes}
+						</Text>
+						{/* {quizzes.length > 0 && <IconList size={14} />} */}
+					</Group>
+				</Badge>
 
-			{/* Кнопка следующего теста */}
-			<Button
-				variant='light'
-				rightSection={<IconArrowRight size={16} />}
-				onClick={onNext}
-				disabled={currentQuizIndex === totalQuizzes - 1}
-				size='sm'
-			>
-				Следующий
-			</Button>
+				{/* Кнопка следующего теста */}
+				<Button
+					variant='light'
+					rightSection={<IconArrowRight size={16} />}
+					onClick={onNext}
+					disabled={currentQuizIndex === totalQuizzes - 1}
+					size='sm'
+				>
+					Следующий
+				</Button>
+			</Flex>
 
 			{/* Простой список тестов */}
 			{showList && quizzes.length > 0 && (
