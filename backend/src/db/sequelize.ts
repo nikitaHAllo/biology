@@ -3,9 +3,15 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const sequelize = new Sequelize(process.env.DATABASE_URL || '', {
+const dbUrl = process.env.DATABASE_URL;
+
+if (!dbUrl) {
+	console.error('❌ DATABASE_URL не задан в .env — добавь строку подключения к PostgreSQL');
+}
+
+const sequelize = new Sequelize(dbUrl ?? 'postgres://postgres:postgres@localhost:5432/biology', {
 	dialect: 'postgres',
-	logging: process.env.NODE_ENV === 'development' ? console.log : false,
+	logging: false,
 	pool: {
 		max: 5,
 		min: 0,

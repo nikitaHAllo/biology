@@ -32,7 +32,10 @@ import type {
 	WaterPlantResponse,
 } from '../models/biogarden';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+// В режиме разработки через dev tunnel используем переменную окружения,
+// иначе — localhost (для прямого запуска в браузере)
+const API_BASE_URL =
+	import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
 class ApiService {
 	private api = axios.create({

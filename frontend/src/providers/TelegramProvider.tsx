@@ -25,32 +25,28 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({
 		if (tg) {
 			setWebApp(tg);
 
-			if (tg.initDataUnsafe?.user) {
-				setUser(tg.initDataUnsafe.user);
-			}
-
-			// Получаем тему из Telegram
-			if (tg.themeParams) {
-				setThemeParams(tg.themeParams);
-			}
-
-			if (tg.colorScheme) {
-				setColorScheme(tg.colorScheme);
-			}
+			if (tg.themeParams) setThemeParams(tg.themeParams);
+			if (tg.colorScheme) setColorScheme(tg.colorScheme);
 
 			tg.ready();
 			tg.expand();
-			setIsLoading(false);
+		}
+
+		// Пользователь из Telegram или fallback для локальной разработки
+		const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+		if (tgUser?.id) {
+			setUser(tgUser);
 		} else {
-			// Для разработки вне Telegram
+			// SDK не передал пользователя — используем dev-аккаунт
 			setUser({
-				id: 1053404914,
-				first_name: 'Тестовый',
-				username: 'test_user',
+				id: 2110078216,
+				first_name: 'Dev',
+				username: 'dev_user',
 				photo_url: '',
 			});
-			setIsLoading(false);
 		}
+
+		setIsLoading(false);
 	}, []);
 
 	const contextValue: TelegramContextType = {

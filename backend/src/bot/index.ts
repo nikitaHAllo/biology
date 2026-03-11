@@ -78,11 +78,12 @@ bot.command('start', startCommand);
 bot.command('progress', progressCommand);
 bot.command('help', helpCommand);
 
-// ⚠️ initBot теперь реально запускает polling
-export const initBot = (): Bot<MyContext> => {
-	bot.start();
+// Запускает polling — ошибки не роняют сервер
+export const initBot = (): void => {
+	bot.start().catch(err => {
+		console.error('⚠️  Bot polling error (сервер продолжает работу):', (err as Error).message);
+	});
 	console.log('🤖 Bot started in polling mode');
-	return bot;
 };
 
 export { bot };
