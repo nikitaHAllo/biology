@@ -5,7 +5,8 @@
 	"scripts": {
 		"dev": "ts-node-dev --respawn --transpile-only src/index.ts",
 		"build": "tsc",
-		"start": "node dist/index.js"
+		"start": "node dist/index.js",
+		"seed:biogarden": "ts-node src/db/seedBiogarden.ts"
 	},
 	"keywords": [],
 	"author": "",
@@ -18,6 +19,7 @@
 		"dotenv": "^17.2.3",
 		"express": "^5.1.0",
 		"grammy": "^1.38.3",
+		"node-cron": "^4.2.1",
 		"pg": "^8.16.3",
 		"pg-hstore": "^2.3.4",
 		"sequelize": "^6.37.7"
@@ -25,6 +27,7 @@
 	"devDependencies": {
 		"@types/express": "^5.0.5",
 		"@types/node": "^24.9.2",
+		"@types/node-cron": "^3.0.11",
 		"@types/pg": "^8.15.6",
 		"@types/sequelize": "^4.28.20",
 		"cross-env": "^10.1.0",

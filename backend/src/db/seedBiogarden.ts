@@ -34,6 +34,7 @@ interface QuestionSeed {
 }
 
 const plantsSeed: PlantSeed[] = [
+	// 🌱 Горох — Генетика (3.5–3.8), сложность 1
 	{
 		name: 'Горох посевной',
 		scientific_name: 'Pisum sativum',
@@ -43,21 +44,10 @@ const plantsSeed: PlantSeed[] = [
 			'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Peas_in_pods_-_Studio.jpg/320px-Peas_in_pods_-_Studio.jpg',
 		growth_stages: 5,
 		required_experience: 0,
-		biology_topics: ['Генетика', 'Ботаника'],
+		biology_topics: ['Генетика (3.5–3.8)'],
 		difficulty_level: 1,
 	},
-	{
-		name: 'Кукуруза',
-		scientific_name: 'Zea mays',
-		description:
-			'Однодольное растение, важная сельскохозяйственная культура. Используется в генетических исследованиях.',
-		image_url:
-			'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Zea_mays.jpg/320px-Zea_mays.jpg',
-		growth_stages: 6,
-		required_experience: 50,
-		biology_topics: ['Генетика', 'Сельское хозяйство'],
-		difficulty_level: 2,
-	},
+	// 🟢 Хламидомонада — Цитология (2.1–2.8), сложность 2
 	{
 		name: 'Хламидомонада',
 		scientific_name: 'Chlamydomonas',
@@ -65,46 +55,88 @@ const plantsSeed: PlantSeed[] = [
 			'Одноклеточная зелёная водоросль, объект изучения клеточной биологии и фотосинтеза.',
 		image_url:
 			'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Chlamydomonas_%28Chlorophyta%29_%2834446608450%29.jpg/320px-Chlamydomonas_%28Chlorophyta%29_%2834446608450%29.jpg',
-		growth_stages: 4,
-		required_experience: 100,
-		biology_topics: ['Цитология', 'Фотосинтез'],
-		difficulty_level: 3,
-	},
-	{
-		name: 'Папоротник',
-		scientific_name: 'Polypodiopsida',
-		description:
-			'Высшее споровое растение, пример чередования поколений в жизненном цикле.',
-		image_url:
-			'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Fern.jpg/320px-Fern.jpg',
-		growth_stages: 7,
-		required_experience: 150,
-		biology_topics: ['Ботаника', 'Размножение растений'],
-		difficulty_level: 4,
-	},
-	{
-		name: 'Эвглена зелёная',
-		scientific_name: 'Euglena viridis',
-		description:
-			'Одноклеточный организм со смешанными признаками растений и животных.',
-		image_url:
-			'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Euglena_sp.jpg/320px-Euglena_sp.jpg',
 		growth_stages: 5,
-		required_experience: 200,
-		biology_topics: ['Цитология', 'Систематика'],
-		difficulty_level: 5,
+		required_experience: 50,
+		biology_topics: ['Цитология (2.1–2.8)'],
+		difficulty_level: 2,
 	},
+	// 🥔 Картофель — Размножение (3.1–3.4), сложность 3
 	{
 		name: 'Картофель',
 		scientific_name: 'Solanum tuberosum',
 		description:
-			'Паслёновое растение, пример вегетативного размножения клубнями.',
+			'Паслёновое растение, классический пример вегетативного размножения клубнями.',
 		image_url:
 			'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Patates.jpg/320px-Patates.jpg',
-		growth_stages: 6,
+		growth_stages: 5,
+		required_experience: 100,
+		biology_topics: ['Размножение (3.1–3.4)'],
+		difficulty_level: 3,
+	},
+	// 🦠 Эвглена — Многообразие (4.1–4.2), сложность 4
+	{
+		name: 'Эвглена зелёная',
+		scientific_name: 'Euglena viridis',
+		description:
+			'Одноклеточный организм со смешанными признаками растений и животных, пример многообразия живых организмов.',
+		image_url:
+			'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Euglena_sp.jpg/320px-Euglena_sp.jpg',
+		growth_stages: 5,
+		required_experience: 150,
+		biology_topics: ['Многообразие (4.1–4.2)'],
+		difficulty_level: 4,
+	},
+	// 🌿 Папоротник — Систематика растений (4.3–4.6), сложность 5
+	{
+		name: 'Папоротник',
+		scientific_name: 'Polypodiopsida',
+		description:
+			'Высшее споровое растение, важный объект для изучения систематики и жизненных циклов растений.',
+		image_url:
+			'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Fern.jpg/320px-Fern.jpg',
+		growth_stages: 5,
+		required_experience: 200,
+		biology_topics: ['Систематика растений (4.3–4.6)'],
+		difficulty_level: 5,
+	},
+	// 🌽 Кукуруза — Селекция (3.9–3.11), сложность 6
+	{
+		name: 'Кукуруза',
+		scientific_name: 'Zea mays',
+		description:
+			'Важная сельскохозяйственная культура и классический объект исследований по селекции и генетике.',
+		image_url:
+			'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Zea_mays.jpg/320px-Zea_mays.jpg',
+		growth_stages: 5,
 		required_experience: 250,
-		biology_topics: ['Ботаника', 'Размножение'],
+		biology_topics: ['Селекция (3.9–3.11)'],
 		difficulty_level: 6,
+	},
+	// 🌲 Сосна — Эволюция (6.1–6.5), сложность 7
+	{
+		name: 'Сосна обыкновенная',
+		scientific_name: 'Pinus sylvestris',
+		description:
+			'Характерный представитель голосеменных, пример эволюции семенных растений и приспособлений к наземной жизни.',
+		image_url:
+			'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Scots_pine.jpg/320px-Scots_pine.jpg',
+		growth_stages: 5,
+		required_experience: 300,
+		biology_topics: ['Эволюция (6.1–6.5)'],
+		difficulty_level: 7,
+	},
+	// 🌾 Сфагнум — Экология (7.1–7.5), сложность 8
+	{
+		name: 'Сфагнум',
+		scientific_name: 'Sphagnum',
+		description:
+			'Торфяной мох, ключевой вид болотных экосистем, важен для понимания экологии и круговорота веществ.',
+		image_url:
+			'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Sphagnum_fimbriatum.jpeg/320px-Sphagnum_fimbriatum.jpeg',
+		growth_stages: 5,
+		required_experience: 350,
+		biology_topics: ['Экология (7.1–7.5)'],
+		difficulty_level: 8,
 	},
 ];
 
@@ -319,6 +351,130 @@ const questionsSeed: QuestionSeed[] = [
 			{ option_text: 'Спора', is_correct: false, order_index: 4 },
 		],
 	},
+	// Картофель — Размножение (3.1–3.4)
+	{
+		plant_name: 'Картофель',
+		question_text: 'Какой орган картофеля используют для вегетативного размножения?',
+		explanation: 'Картофель размножают клубнями — видоизменёнными подземными побегами с запасом питательных веществ.',
+		points: 10,
+		difficulty_level: 2,
+		biology_topic: 'Размножение',
+		ege_code: '3.2',
+		options: [
+			{ option_text: 'Клубень', is_correct: true, order_index: 1 },
+			{ option_text: 'Корнеплод', is_correct: false, order_index: 2 },
+			{ option_text: 'Луковица', is_correct: false, order_index: 3 },
+			{ option_text: 'Семя', is_correct: false, order_index: 4 },
+		],
+	},
+	{
+		plant_name: 'Картофель',
+		question_text: 'К какому семейству относится картофель?',
+		explanation: 'Картофель относится к семейству Паслёновые (Solanaceae).',
+		points: 10,
+		difficulty_level: 2,
+		biology_topic: 'Систематика',
+		ege_code: '4.3',
+		options: [
+			{ option_text: 'Паслёновые', is_correct: true, order_index: 1 },
+			{ option_text: 'Бобовые', is_correct: false, order_index: 2 },
+			{ option_text: 'Злаковые', is_correct: false, order_index: 3 },
+			{ option_text: 'Розоцветные', is_correct: false, order_index: 4 },
+		],
+	},
+	// Эвглена — Многообразие (4.1–4.2)
+	{
+		plant_name: 'Эвглена зелёная',
+		question_text: 'Чем эвглена питается на свету?',
+		explanation: 'На свету эвглена питается автотрофно, за счёт фотосинтеза в хлоропластах.',
+		points: 10,
+		difficulty_level: 2,
+		biology_topic: 'Многообразие',
+		ege_code: '4.1',
+		options: [
+			{ option_text: 'Автотрофно (фотосинтез)', is_correct: true, order_index: 1 },
+			{ option_text: 'Только гетеротрофно', is_correct: false, order_index: 2 },
+			{ option_text: 'Только паразитизмом', is_correct: false, order_index: 3 },
+			{ option_text: 'Хемосинтезом', is_correct: false, order_index: 4 },
+		],
+	},
+	{
+		plant_name: 'Эвглена зелёная',
+		question_text: 'С помощью чего эвглена передвигается?',
+		explanation: 'Эвглена имеет один жгутик на переднем конце тела.',
+		points: 10,
+		difficulty_level: 2,
+		biology_topic: 'Многообразие',
+		ege_code: '4.1',
+		options: [
+			{ option_text: 'Жгутика', is_correct: true, order_index: 1 },
+			{ option_text: 'Ресничек', is_correct: false, order_index: 2 },
+			{ option_text: 'Ложноножек', is_correct: false, order_index: 3 },
+			{ option_text: 'Мышц', is_correct: false, order_index: 4 },
+		],
+	},
+	// Сосна — Эволюция (6.1–6.5)
+	{
+		plant_name: 'Сосна обыкновенная',
+		question_text: 'Где у сосны образуются семена?',
+		explanation: 'Семена сосны развиваются в шишках на семенных чешуях (голосеменные).',
+		points: 15,
+		difficulty_level: 2,
+		biology_topic: 'Эволюция',
+		ege_code: '6.2',
+		options: [
+			{ option_text: 'В шишках', is_correct: true, order_index: 1 },
+			{ option_text: 'В плодах', is_correct: false, order_index: 2 },
+			{ option_text: 'В спорангиях', is_correct: false, order_index: 3 },
+			{ option_text: 'На заростке', is_correct: false, order_index: 4 },
+		],
+	},
+	{
+		plant_name: 'Сосна обыкновенная',
+		question_text: 'К какой группе растений относится сосна?',
+		explanation: 'Сосна — голосеменное растение; семена лежат открыто на чешуях шишек.',
+		points: 10,
+		difficulty_level: 2,
+		biology_topic: 'Эволюция',
+		ege_code: '6.1',
+		options: [
+			{ option_text: 'Голосеменные', is_correct: true, order_index: 1 },
+			{ option_text: 'Покрытосеменные', is_correct: false, order_index: 2 },
+			{ option_text: 'Папоротниковидные', is_correct: false, order_index: 3 },
+			{ option_text: 'Моховидные', is_correct: false, order_index: 4 },
+		],
+	},
+	// Сфагнум — Экология (7.1–7.5)
+	{
+		plant_name: 'Сфагнум',
+		question_text: 'Где в природе чаще всего растёт сфагнум?',
+		explanation: 'Сфагнум типичен для болот и влажных местообитаний; образует торф.',
+		points: 10,
+		difficulty_level: 2,
+		biology_topic: 'Экология',
+		ege_code: '7.1',
+		options: [
+			{ option_text: 'На болотах', is_correct: true, order_index: 1 },
+			{ option_text: 'В пустынях', is_correct: false, order_index: 2 },
+			{ option_text: 'В степи', is_correct: false, order_index: 3 },
+			{ option_text: 'В море', is_correct: false, order_index: 4 },
+		],
+	},
+	{
+		plant_name: 'Сфагнум',
+		question_text: 'Что образуется из отмершего сфагнума со временем?',
+		explanation: 'Сфагновые мхи — главные торфообразователи; из них формируется торф.',
+		points: 15,
+		difficulty_level: 2,
+		biology_topic: 'Экология',
+		ege_code: '7.2',
+		options: [
+			{ option_text: 'Торф', is_correct: true, order_index: 1 },
+			{ option_text: 'Каменный уголь', is_correct: false, order_index: 2 },
+			{ option_text: 'Нефть', is_correct: false, order_index: 3 },
+			{ option_text: 'Известняк', is_correct: false, order_index: 4 },
+		],
+	},
 ];
 
 // seed-biogarden.ts (упрощенная версия)
@@ -350,77 +506,70 @@ async function seedBioGardenPlants() {
 	});
 }
 
-// seed-biogarden.ts (упрощенная версия)
+// Полноценный сид вопросов из questionsSeed
 async function seedBioGardenQuestions() {
-  const questionCount = await BioGardenQuestion.count();
-  if (questionCount > 0) {
-    console.log('Questions already exist, skipping seed...');
-    return;
-  }
+	const questionCount = await BioGardenQuestion.count();
+	if (questionCount > 0) {
+		console.log('Questions already exist, skipping seed...');
+		return;
+	}
 
-  await sequelize.transaction(async transaction => {
-    const plants = await BioGardenPlant.findAll({ 
-      attributes: ['id', 'name', 'difficulty_level'],
-      raw: true,
-      transaction 
-    });
+	await sequelize.transaction(async transaction => {
+		const plants = await BioGardenPlant.findAll({
+			attributes: ['id', 'name'],
+			raw: true,
+			transaction,
+		});
 
-    console.log('Found plants for seeding questions:', plants);
+		if (plants.length === 0) {
+			console.warn('No plants found for seeding questions');
+			return;
+		}
 
-    if (plants.length === 0) {
-      console.warn('No plants found for seeding questions');
-      return;
-    }
+		const plantMap = new Map<string, number>();
+		plants.forEach(p => {
+			plantMap.set(p.name, p.id);
+		});
 
-    let questionNumber = 0;
-    
-    for (const plant of plants) {
-      // Создаем один вопрос для каждого растения
-      questionNumber++;
-      
-      const question = await BioGardenQuestion.create({
-        plant_id: plant.id,
-        question_text: `Вопрос ${questionNumber} про ${plant.name}`,
-        explanation: `Это базовый вопрос про растение ${plant.name}.`,
-        points: 10,
-        difficulty_level: plant.difficulty_level || 1,
-        biology_topic: 'Ботаника',
-        ege_code: '2.1',
-        is_active: true,
-      }, { transaction });
+		for (const qSeed of questionsSeed) {
+			const plantId = plantMap.get(qSeed.plant_name);
+			if (!plantId) {
+				console.warn(
+					`Plant for question not found, skipping: ${qSeed.plant_name}`,
+				);
+				continue;
+			}
 
-      // Создаем опции по одной
-      await BioGardenAnswerOption.create({
-        question_id: question.id,
-        option_text: 'Правильный ответ',
-        is_correct: true,
-        order_index: 1,
-      }, { transaction });
+			const question = await BioGardenQuestion.create(
+				{
+					plant_id: plantId,
+					question_text: qSeed.question_text,
+					explanation: qSeed.explanation,
+					points: qSeed.points,
+					difficulty_level: qSeed.difficulty_level,
+					biology_topic: qSeed.biology_topic,
+					ege_code: qSeed.ege_code,
+					timer_seconds: 60,
+					is_active: true,
+				},
+				{ transaction },
+			);
 
-      await BioGardenAnswerOption.create({
-        question_id: question.id,
-        option_text: 'Неправильный ответ 1',
-        is_correct: false,
-        order_index: 2,
-      }, { transaction });
+			for (const opt of qSeed.options) {
+				await BioGardenAnswerOption.create(
+					{
+						question_id: question.id,
+						option_text: opt.option_text,
+						is_correct: opt.is_correct,
+						order_index: opt.order_index,
+					},
+					{ transaction },
+				);
+			}
+		}
 
-      await BioGardenAnswerOption.create({
-        question_id: question.id,
-        option_text: 'Неправильный ответ 2',
-        is_correct: false,
-        order_index: 3,
-      }, { transaction });
-
-      await BioGardenAnswerOption.create({
-        question_id: question.id,
-        option_text: 'Неправильный ответ 3',
-        is_correct: false,
-        order_index: 4,
-      }, { transaction });
-    }
-    
-    console.log(`Seeded ${plants.length} basic questions`);
-  });
+		console.log(`Seeded ${questionsSeed.length} biogarden questions`);
+	});
 }
 
 export async function seedBioGardenData() {
@@ -433,4 +582,19 @@ export async function seedBioGardenData() {
 		console.error('Error seeding BioGarden data:', error);
 		throw error;
 	}
+}
+
+// Запуск при прямом вызове: npm run seed:biogarden
+if (require.main === module) {
+	(async () => {
+		try {
+			await sequelize.authenticate();
+			await sequelize.sync({ force: false });
+			await seedBioGardenData();
+			process.exit(0);
+		} catch (e) {
+			console.error(e);
+			process.exit(1);
+		}
+	})();
 }

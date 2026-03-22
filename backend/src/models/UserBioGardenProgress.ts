@@ -13,6 +13,11 @@ interface UserBioGardenProgressAttributes {
 	max_health_points: number;
 	is_completed: boolean;
 	is_unlocked: boolean;
+	combo_count: number;
+	last_practiced_at: Date | null;
+	is_wilted: boolean;
+	revive_sleep_until: Date | null;
+	last_decay_at: Date | null;
 	last_watered_at: Date | null;
 	planted_at: Date;
 	completed_at: Date | null;
@@ -27,10 +32,15 @@ interface UserBioGardenProgressCreationAttributes extends Optional<
 	| 'updated_at'
 	| 'is_completed'
 	| 'is_unlocked'
+	| 'combo_count'
 	| 'current_stage'
 	| 'experience_points'
 	| 'health_points'
 	| 'max_health_points'
+	| 'last_practiced_at'
+	| 'is_wilted'
+	| 'revive_sleep_until'
+	| 'last_decay_at'
 	| 'last_watered_at'
 	| 'completed_at'
 > {}
@@ -51,6 +61,11 @@ export class UserBioGardenProgress
 	public max_health_points!: number;
 	public is_completed!: boolean;
 	public is_unlocked!: boolean;
+	public combo_count!: number;
+	public last_practiced_at!: Date | null;
+	public is_wilted!: boolean;
+	public revive_sleep_until!: Date | null;
+	public last_decay_at!: Date | null;
 	public last_watered_at!: Date | null;
 	public planted_at!: Date;
 	public completed_at!: Date | null;
@@ -114,6 +129,28 @@ UserBioGardenProgress.init(
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 			defaultValue: false,
+		},
+		combo_count: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 0,
+		},
+		last_practiced_at: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		is_wilted: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
+		},
+		revive_sleep_until: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		last_decay_at: {
+			type: DataTypes.DATE,
+			allowNull: true,
 		},
 		last_watered_at: {
 			type: DataTypes.DATE,

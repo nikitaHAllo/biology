@@ -12,13 +12,22 @@ interface UserBioGardenAttemptAttributes {
 	is_correct: boolean;
 	earned_experience: number;
 	earned_coins: number;
+	hp_before: number | null;
+	hp_after: number | null;
+	combo_before: number | null;
+	combo_after: number | null;
 	answered_at: Date;
 	created_at: Date;
 }
 
 interface UserBioGardenAttemptCreationAttributes extends Optional<
 	UserBioGardenAttemptAttributes,
-	'id' | 'created_at'
+	| 'id'
+	| 'created_at'
+	| 'hp_before'
+	| 'hp_after'
+	| 'combo_before'
+	| 'combo_after'
 > {}
 
 export class UserBioGardenAttempt
@@ -36,6 +45,10 @@ export class UserBioGardenAttempt
 	public is_correct!: boolean;
 	public earned_experience!: number;
 	public earned_coins!: number;
+	public hp_before!: number | null;
+	public hp_after!: number | null;
+	public combo_before!: number | null;
+	public combo_after!: number | null;
 	public answered_at!: Date;
 	public created_at!: Date;
 
@@ -90,6 +103,22 @@ UserBioGardenAttempt.init(
 			type: DataTypes.INTEGER,
 			allowNull: false,
 			defaultValue: 0,
+		},
+		hp_before: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
+		hp_after: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
+		combo_before: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
+		combo_after: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
 		},
 		answered_at: {
 			type: DataTypes.DATE,

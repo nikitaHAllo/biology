@@ -1,6 +1,7 @@
 import { app } from './api/server';
 import { initBot } from './bot/index';
 import { initDatabase } from './db/init';
+import { startBiogardenDecayCron } from './cron/biogardenDecay';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -20,6 +21,7 @@ async function main() {
 	try {
 		await initDatabase();
 		console.log('✅ Database initialized');
+		startBiogardenDecayCron();
 	} catch (err) {
 		console.error('⚠️  Database init failed (API работает без БД):', err);
 	}

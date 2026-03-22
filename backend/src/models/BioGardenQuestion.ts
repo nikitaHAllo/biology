@@ -11,6 +11,7 @@ export interface BioGardenQuestionAttributes {
 	difficulty_level: number;
 	biology_topic: string;
 	ege_code: string;
+	timer_seconds?: number;
 	is_active: boolean;
 	created_at?: Date;
 }
@@ -35,6 +36,7 @@ export class BioGardenQuestion
 	declare difficulty_level: number;
 	declare biology_topic: string;
 	declare ege_code: string;
+	declare timer_seconds?: number;
 	declare is_active: boolean;
 	declare readonly created_at?: Date;
 
@@ -86,6 +88,11 @@ BioGardenQuestion.init(
 		ege_code: {
 			type: DataTypes.STRING(50),
 			allowNull: false,
+		},
+		timer_seconds: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 60,
 		},
 		is_active: {
 			type: DataTypes.BOOLEAN,

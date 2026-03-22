@@ -7,6 +7,7 @@ import {
 	BioGardenAnswerOption,
 	UserBioGardenProgress,
 	UserBioGardenAttempt,
+	UserTopicMastery,
 	WalletTransaction,
 	sequelize,
 } from '../../models';
@@ -16,6 +17,8 @@ class BioGardenController {
 	// GET /biogarden/plants
 	async getPlants(req: Request, res: Response) {
 		try {
+			console.log('Received telegramId:', req.query.telegramId); // Логируем входящий параметр
+
 			const { telegramId } = req.query;
 
 			if (!telegramId) {
@@ -25,10 +28,14 @@ class BioGardenController {
 				});
 			}
 
+			console.log('Searching for user with telegram_id:', Number(telegramId));
+
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
 				raw: true,
 			});
+
+			console.log('Found user:', user);
 
 			if (!user) {
 				return res.status(404).json({
@@ -47,6 +54,7 @@ class BioGardenController {
 			// Получаем прогресс пользователя
 			const userProgress = await UserBioGardenProgress.findAll({
 				where: { user_id: user.id },
+				raw: true,
 				include: [
 					{
 						model: BioGardenPlant,
@@ -55,11 +63,22 @@ class BioGardenController {
 					},
 				],
 			});
-
+			console.log(`Found ${userProgress.length} progress records`);
 			const progressMap = new Map();
 			userProgress.forEach(progress => {
 				progressMap.set(progress.plant_id, progress);
 			});
+
+			// hp_state для визуала: healthy / medium / low / critical / dead
+			const getHpState = (hp: number, max: number): string => {
+				if (max <= 0 || hp <= 0) return 'dead';
+				const pct = (hp / max) * 100;
+				if (pct >= 80) return 'healthy';
+				if (pct >= 50) return 'medium';
+				if (pct >= 20) return 'low';
+				if (pct >= 1) return 'critical';
+				return 'dead';
+			};
 
 			// Форматируем ответ
 			const formatted = plants.map(plant => {
@@ -67,16 +86,21 @@ class BioGardenController {
 				const isUnlocked = !progress
 					? plant.required_experience === 0
 					: progress.is_unlocked;
+				const hp = progress?.health_points ?? 0;
+				const maxHp = progress?.max_health_points ?? 100;
 
 				return {
 					...plant,
 					is_unlocked: isUnlocked,
 					current_stage: progress?.current_stage || 0,
 					experience_points: progress?.experience_points || 0,
-					health_points: progress?.health_points || 0,
-					max_health_points: progress?.max_health_points || 100,
+					health_points: hp,
+					max_health_points: maxHp,
+					hp_state: progress ? getHpState(hp, maxHp) : 'healthy',
 					is_completed: progress?.is_completed || false,
 					planted_at: progress?.planted_at || null,
+					is_wilted: progress?.is_wilted ?? false,
+					revive_sleep_until: progress?.revive_sleep_until ?? null,
 				};
 			});
 
@@ -128,9 +152,27 @@ class BioGardenController {
 				});
 			}
 
-			// Вместо опыта проверяем только разблокировку
-			// (можно сделать проверку на монеты, если нужно)
-			// if (user.coins < plant.required_coins) { ... }
+			// Последовательная разблокировка: растение N можно начать только после предыдущего (по difficulty_level)
+			if (plant.difficulty_level > 1) {
+				const prevPlant = await BioGardenPlant.findOne({
+					where: {
+						difficulty_level: plant.difficulty_level - 1,
+						is_active: true,
+					},
+					raw: true,
+				});
+				if (prevPlant) {
+					const prevProgress = await UserBioGardenProgress.findOne({
+						where: { user_id: user.id, plant_id: prevPlant.id },
+					});
+					if (!prevProgress || !prevProgress.planted_at) {
+						return res.status(400).json({
+							success: false,
+							message: `Сначала начните выращивать предыдущее растение: ${prevPlant.name}`,
+						});
+					}
+				}
+			}
 
 			// Проверяем, есть ли уже прогресс
 			let progress = await UserBioGardenProgress.findOne({
@@ -141,16 +183,21 @@ class BioGardenController {
 			});
 
 			if (!progress) {
-				// Создаем новый прогресс
+				// Создаем новый прогресс: старт со 2-й стадии и 60 HP
 				progress = await UserBioGardenProgress.create({
 					user_id: user.id,
 					plant_id: plant.id,
-					current_stage: 1,
+					current_stage: 2,
 					experience_points: 0,
-					health_points: 100,
+					health_points: 60,
 					max_health_points: 100,
 					is_unlocked: true,
 					is_completed: false,
+					combo_count: 0,
+					last_practiced_at: null,
+					is_wilted: false,
+					revive_sleep_until: null,
+					last_decay_at: null,
 					planted_at: new Date(),
 				});
 			} else if (progress.is_completed) {
@@ -231,11 +278,11 @@ class BioGardenController {
 				});
 			}
 
-			// Получаем случайный вопрос для текущей стадии
+			// Вопрос для стадии: подходят уровни от 1 до current_stage (стадия 2 = блок А, 3–4 = средний/часть B)
 			const question = await BioGardenQuestion.findOne({
 				where: {
 					plant_id: Number(plantId),
-					difficulty_level: progress.current_stage,
+					difficulty_level: { [Op.lte]: progress.current_stage },
 					is_active: true,
 				},
 				include: [
@@ -260,6 +307,9 @@ class BioGardenController {
 				? [...question.options].sort((a, b) => a.order_index - b.order_index)
 				: [];
 
+			const q = question as { timer_seconds?: number };
+			const timerSeconds = q.timer_seconds ?? 60;
+
 			// Форматируем вопрос без правильных ответов
 			const formattedQuestion = {
 				id: question.id,
@@ -267,6 +317,7 @@ class BioGardenController {
 				biology_topic: question.biology_topic,
 				ege_code: question.ege_code,
 				points: question.points,
+				timer_seconds: timerSeconds,
 				options: sortedOptions.map(option => ({
 					id: option.id,
 					option_text: option.option_text,
@@ -335,6 +386,15 @@ class BioGardenController {
 				});
 			}
 
+			// Проверяем, не в спячке ли растение после неудачной реанимации
+			const now = new Date();
+			if (progress.revive_sleep_until && progress.revive_sleep_until > now) {
+				return res.status(400).json({
+					success: false,
+					message: 'Растение сейчас в спячке, попробуйте позже',
+				});
+			}
+
 			// Получаем вопрос и правильный ответ
 			const question = await BioGardenQuestion.findByPk(questionId, {
 				include: [
@@ -367,8 +427,98 @@ class BioGardenController {
 			}
 
 			const isCorrect = selectedOption.is_correct;
-			const earnedExperience = isCorrect ? question.points : 0;
-			let earnedCoins = isCorrect ? Math.floor(question.points / 2) : 0;
+
+			// Текущее HP/комбо до ответа
+			const hpBefore = progress.health_points;
+			const comboBefore = progress.combo_count ?? 0;
+
+			let comboAfter = comboBefore;
+			let hpAfter = hpBefore;
+			let earnedExperience = 0;
+			let earnedCoins = 0;
+			let skipStage = false;
+
+			if (isCorrect) {
+				// Обновляем серию
+				comboAfter = comboBefore + 1;
+
+				// Базовый прирост HP
+				let hpGain = 15;
+
+				if (comboAfter >= 10) {
+					hpGain = 35;
+					skipStage = true;
+				} else if (comboAfter >= 5) {
+					hpGain = 35;
+				} else if (comboAfter >= 3) {
+					hpGain = 25;
+				}
+
+				hpAfter = Math.min(
+					hpBefore + hpGain,
+					progress.max_health_points ?? 100,
+				);
+
+				// Опыт и монеты зависят от сложности вопроса
+				earnedExperience = question.points;
+				const difficulty = question.difficulty_level ?? 1;
+				earnedCoins = 5 + Math.min(difficulty * 2, 15);
+				// Бонус монет за серию 5
+				if (comboAfter === 5) {
+					earnedCoins += 25;
+				}
+			} else {
+				// Ошибка: сбрасываем серию и отнимаем HP
+				comboAfter = 0;
+				hpAfter = Math.max(hpBefore - 15, 0);
+			}
+
+			// Обновляем прогресс по формуле HP/combo/рост
+			progress.health_points = hpAfter;
+			progress.combo_count = comboAfter;
+			progress.last_practiced_at = now;
+
+			let animation: 'water' | 'dry' | 'revive' | 'stage_up' | null = null;
+
+			if (isCorrect) {
+				animation = 'water';
+
+				// Рост стадии: только если HP при ответе >= 80
+				const plantStages = progress.plant?.growth_stages || 5;
+				const canGrow = hpAfter >= 80 && !progress.is_completed;
+
+				if (canGrow) {
+					let newStage = progress.current_stage;
+					if (skipStage) {
+						newStage += 2;
+					} else {
+						newStage += 1;
+					}
+					if (newStage > plantStages) {
+						newStage = plantStages;
+					}
+
+					if (newStage !== progress.current_stage) {
+						progress.current_stage = newStage;
+						animation = 'stage_up';
+					}
+
+					// Полное выращивание растения
+					if (progress.current_stage >= plantStages && !progress.is_completed) {
+						progress.is_completed = true;
+						progress.completed_at = now;
+						earnedCoins += 100;
+					}
+				}
+			} else {
+				animation = 'dry';
+
+				if (hpAfter <= 0) {
+					progress.health_points = 0;
+					progress.is_unlocked = false;
+					progress.is_wilted = true;
+				}
+			}
 
 			// Создаем запись о попытке
 			await UserBioGardenAttempt.create({
@@ -379,67 +529,157 @@ class BioGardenController {
 				is_correct: isCorrect,
 				earned_experience: earnedExperience,
 				earned_coins: earnedCoins,
-				answered_at: new Date(),
+				hp_before: hpBefore,
+				hp_after: hpAfter,
+				combo_before: comboBefore,
+				combo_after: comboAfter,
+				answered_at: now,
 			});
 
-			// Обновляем прогресс
-			if (isCorrect) {
-				// Добавляем опыт в прогресс растения
-				progress.experience_points += earnedExperience;
+			// Обновляем мастерство по коду ЕГЭ
+			if (question.ege_code) {
+				const [mastery] = await UserTopicMastery.findOrCreate({
+					where: {
+						user_id: user.id,
+						ege_code: question.ege_code,
+					},
+					defaults: {
+						user_id: user.id,
+						ege_code: question.ege_code,
+						correct_count: 0,
+						total_count: 0,
+						accuracy: 0,
+						mastery_level: 'novice',
+					},
+				});
 
-				// Переходим на следующую стадию, если набрали достаточно опыта
-				const requiredExpForStage = progress.current_stage * 50;
-				const plantStages = progress.plant?.growth_stages || 5;
-
-				if (
-					progress.experience_points >= requiredExpForStage &&
-					progress.current_stage < plantStages
-				) {
-					progress.current_stage += 1;
-					progress.experience_points = 0;
+				mastery.total_count += 1;
+				if (isCorrect) {
+					mastery.correct_count += 1;
 				}
 
-				// Проверяем, завершено ли растение
-				if (progress.current_stage > plantStages) {
-					progress.is_completed = true;
-					progress.completed_at = new Date();
-
-					// Награда за завершение
-					const completionBonus = 100;
-					earnedCoins += completionBonus;
+				if (mastery.total_count > 0) {
+					mastery.accuracy = Math.round(
+						(mastery.correct_count / mastery.total_count) * 100,
+					);
 				}
 
-				// Начисляем монеты
-				if (earnedCoins > 0) {
+				if (mastery.accuracy >= 80) {
+					mastery.mastery_level = 'expert';
+				} else if (mastery.accuracy >= 60) {
+					mastery.mastery_level = 'know';
+				} else if (mastery.accuracy >= 40) {
+					mastery.mastery_level = 'learning';
+				} else {
+					mastery.mastery_level = 'novice';
+				}
+
+				await mastery.save();
+			}
+
+			// Начисляем монеты пользователю
+			if (earnedCoins > 0) {
+				const userCoins = Number(user.coins) || 0;
+				const newCoins = userCoins + earnedCoins;
+
+				// Обновляем streak по дням активности
+				const today = new Date();
+				const userLastActive = (user as any).last_active_date as Date | null;
+				let currentStreak = (user as any).current_streak || 0;
+				let longestStreak = (user as any).longest_streak || 0;
+
+				const startOfToday = new Date(
+					today.getFullYear(),
+					today.getMonth(),
+					today.getDate(),
+				);
+
+				let shouldUpdateStreak = true;
+
+				if (userLastActive) {
+					const last = new Date(userLastActive);
+					const startOfLast = new Date(
+						last.getFullYear(),
+						last.getMonth(),
+						last.getDate(),
+					);
+
+					const diffDays =
+						(startOfToday.getTime() - startOfLast.getTime()) /
+						(1000 * 60 * 60 * 24);
+
+					if (diffDays === 0) {
+						// Уже учитывали сегодняшний день
+						shouldUpdateStreak = false;
+					} else if (diffDays === 1) {
+						currentStreak += 1;
+					} else {
+						currentStreak = 1;
+					}
+				} else {
+					currentStreak = 1;
+				}
+
+				if (shouldUpdateStreak) {
+					if (currentStreak > longestStreak) {
+						longestStreak = currentStreak;
+					}
+
+					// Можно добавить небольшие бонусы за большие серии
+					let streakBonus = 0;
+					if (currentStreak > 0 && currentStreak % 5 === 0) {
+						streakBonus = 10;
+					}
+
+					const totalCoinsWithStreak = newCoins + streakBonus;
+
 					await User.update(
 						{
-							coins: Number(user.coins) + earnedCoins,
+							coins: totalCoinsWithStreak,
+							current_streak: currentStreak,
+							longest_streak: longestStreak,
+							last_active_date: startOfToday,
 						},
 						{
 							where: { id: user.id },
 						},
 					);
 
-					await WalletTransaction.create({
-						user_id: user.id,
-						type: 'credit',
-						amount: earnedCoins,
-						source: 'biogarden',
-						meta: {
-							plant_id: plantId,
-							question_id: questionId,
-							stage: progress.current_stage,
+					if (streakBonus > 0) {
+						await WalletTransaction.create({
+							user_id: user.id,
+							type: 'credit',
+							amount: streakBonus,
+							source: 'biogarden_streak_bonus',
+							meta: {
+								plant_id: plantId,
+								current_streak: currentStreak,
+							},
+						});
+					}
+				} else {
+					await User.update(
+						{
+							coins: newCoins,
 						},
-					});
+						{
+							where: { id: user.id },
+						},
+					);
 				}
-			} else {
-				// Неправильный ответ - уменьшаем здоровье
-				progress.health_points -= 20;
 
-				if (progress.health_points <= 0) {
-					progress.health_points = 0;
-					progress.is_unlocked = false;
-				}
+				await WalletTransaction.create({
+					user_id: user.id,
+					type: 'credit',
+					amount: earnedCoins,
+					source: 'biogarden',
+					meta: {
+						plant_id: plantId,
+						question_id: questionId,
+						stage: progress.current_stage,
+						combo: comboAfter,
+					},
+				});
 			}
 
 			await progress.save();
@@ -452,6 +692,8 @@ class BioGardenController {
 					explanation: question.explanation,
 					earned_experience: earnedExperience,
 					earned_coins: earnedCoins,
+					animation,
+					combo_count: comboAfter,
 					progress: {
 						current_stage: progress.current_stage,
 						experience_points: progress.experience_points,
@@ -617,6 +859,10 @@ class BioGardenController {
 				}
 			});
 
+			const userPlain = user.get({ plain: true }) as {
+				current_streak?: number;
+				longest_streak?: number;
+			};
 			res.json({
 				success: true,
 				data: {
@@ -630,6 +876,8 @@ class BioGardenController {
 						is_completed: p.is_completed,
 						planted_at: p.planted_at,
 						completed_at: p.completed_at,
+						is_wilted: p.is_wilted ?? false,
+						revive_sleep_until: p.revive_sleep_until ?? null,
 					})),
 					statistics: {
 						total_plants_started: progress.length,
@@ -645,6 +893,8 @@ class BioGardenController {
 									)
 								: 0,
 						topic_stats: topicStats,
+						current_streak: userPlain.current_streak ?? 0,
+						longest_streak: userPlain.longest_streak ?? 0,
 					},
 				},
 			});
@@ -722,10 +972,22 @@ class BioGardenController {
 						experience_points: progress.experience_points,
 						health_points: progress.health_points,
 						max_health_points: progress.max_health_points,
+						hp_state: (() => {
+							const h = progress.health_points;
+							const m = progress.max_health_points || 100;
+							if (m <= 0 || h <= 0) return 'dead';
+							const pct = (h / m) * 100;
+							if (pct >= 80) return 'healthy';
+							if (pct >= 50) return 'medium';
+							if (pct >= 20) return 'low';
+							return 'critical';
+						})(),
 						is_completed: progress.is_completed,
 						is_unlocked: progress.is_unlocked,
 						planted_at: progress.planted_at,
 						last_watered_at: progress.last_watered_at,
+						is_wilted: progress.is_wilted ?? false,
+						revive_sleep_until: progress.revive_sleep_until ?? null,
 					},
 					recent_attempts: attempts.map(a => {
 						const question = (a as any).question;
@@ -791,6 +1053,10 @@ class BioGardenController {
 				limit: 5,
 			});
 
+			const userPlain = user.get({ plain: true }) as {
+				current_streak?: number;
+				longest_streak?: number;
+			};
 			res.json({
 				success: true,
 				data: {
@@ -807,6 +1073,8 @@ class BioGardenController {
 							(sum, a) => sum + a.earned_coins,
 							0,
 						),
+						current_streak: userPlain.current_streak ?? 0,
+						longest_streak: userPlain.longest_streak ?? 0,
 					},
 					top_plants: plantProgress.map(p => ({
 						plant_id: p.plant_id,
@@ -822,6 +1090,319 @@ class BioGardenController {
 			res.status(500).json({
 				success: false,
 				message: 'Не удалось загрузить статистику',
+			});
+		}
+	}
+
+	// GET /biogarden/plants/:plantId/revive-question — вопрос для реанимации (уровень ЕГЭ часть B)
+	async getReviveQuestion(req: Request, res: Response) {
+		try {
+			const { plantId } = req.params;
+			const { telegramId } = req.query;
+
+			const user = await User.findOne({
+				where: { telegram_id: Number(telegramId) },
+			});
+			if (!user) {
+				return res.status(404).json({
+					success: false,
+					message: 'Пользователь не найден',
+				});
+			}
+
+			const progress = await UserBioGardenProgress.findOne({
+				where: {
+					user_id: user.id,
+					plant_id: Number(plantId),
+				},
+				include: [
+					{
+						model: BioGardenPlant,
+						as: 'plant',
+						attributes: ['growth_stages'],
+					},
+				],
+			});
+
+			if (!progress || !progress.is_wilted) {
+				return res.status(400).json({
+					success: false,
+					message: 'Растение не завяло или прогресс не найден',
+				});
+			}
+
+			const now = new Date();
+			if (progress.revive_sleep_until && progress.revive_sleep_until > now) {
+				return res.status(400).json({
+					success: false,
+					message: 'Растение в спячке до следующей попытки реанимации',
+					revive_sleep_until: progress.revive_sleep_until,
+				});
+			}
+
+			// Вопрос уровня ЕГЭ часть B — сложность 4 или 5
+			const question = await BioGardenQuestion.findOne({
+				where: {
+					plant_id: Number(plantId),
+					difficulty_level: { [Op.gte]: 4 },
+					is_active: true,
+				},
+				include: [
+					{
+						model: BioGardenAnswerOption,
+						as: 'options',
+					},
+				],
+				order: sequelize.random(),
+			});
+
+			if (!question) {
+				return res.status(404).json({
+					success: false,
+					message: 'Нет подходящих вопросов для реанимации',
+				});
+			}
+
+			const q = question as unknown as { options?: { order_index: number }[] };
+			const sortedOptions = (q.options || [])
+				.slice()
+				.sort((a, b) => a.order_index - b.order_index);
+			res.json({
+				success: true,
+				data: {
+					question: {
+						id: question.id,
+						question_text: question.question_text,
+						biology_topic: question.biology_topic,
+						ege_code: question.ege_code,
+						points: question.points,
+						options: (
+							sortedOptions as Array<{
+								id: number;
+								option_text: string;
+								order_index: number;
+							}>
+						).map(opt => ({
+							id: opt.id,
+							option_text: opt.option_text,
+							order_index: opt.order_index,
+						})),
+					},
+					is_revive: true,
+				},
+			});
+		} catch (error) {
+			console.error('Error getting revive question:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Не удалось получить вопрос реанимации',
+			});
+		}
+	}
+
+	// POST /biogarden/plants/:plantId/revive — реанимация: за монеты или запрос вопроса
+	async revive(req: Request, res: Response) {
+		try {
+			const { plantId } = req.params;
+			const { telegramId, mode } = req.body;
+
+			const user = await User.findOne({
+				where: { telegram_id: Number(telegramId) },
+				raw: true,
+			});
+			if (!user) {
+				return res.status(404).json({
+					success: false,
+					message: 'Пользователь не найден',
+				});
+			}
+
+			const progress = await UserBioGardenProgress.findOne({
+				where: {
+					user_id: user.id,
+					plant_id: Number(plantId),
+				},
+			});
+
+			if (!progress || !progress.is_wilted) {
+				return res.status(400).json({
+					success: false,
+					message: 'Растение не завяло',
+				});
+			}
+
+			const now = new Date();
+			if (progress.revive_sleep_until && progress.revive_sleep_until > now) {
+				return res.status(400).json({
+					success: false,
+					message: 'Растение в спячке, попробуйте позже',
+					revive_sleep_until: progress.revive_sleep_until,
+				});
+			}
+
+			if (mode === 'coins') {
+				const cost = 50;
+				if (Number(user.coins) < cost) {
+					return res.status(400).json({
+						success: false,
+						message: `Недостаточно монет. Нужно: ${cost}`,
+					});
+				}
+
+				await User.update(
+					{ coins: Number(user.coins) - cost },
+					{ where: { id: user.id } },
+				);
+				await WalletTransaction.create({
+					user_id: user.id,
+					type: 'debit',
+					amount: cost,
+					source: 'biogarden_revive',
+					meta: { plant_id: Number(plantId) },
+				});
+
+				progress.health_points = 40;
+				progress.is_wilted = false;
+				progress.is_unlocked = true;
+				progress.revive_sleep_until = null;
+				progress.combo_count = 0;
+				await progress.save();
+
+				return res.json({
+					success: true,
+					data: {
+						revived: true,
+						health_points: 40,
+						coins_spent: cost,
+					},
+					message: 'Растение оживлено за монеты',
+				});
+			}
+
+			// Режим "вопрос" — клиент должен запросить вопрос через GET revive-question и ответить через revive-answer
+			return res.json({
+				success: true,
+				data: {
+					revived: false,
+					need_question: true,
+					message:
+						'Запросите вопрос GET /plants/:plantId/revive-question и ответьте POST /plants/:plantId/revive-answer',
+				},
+			});
+		} catch (error) {
+			console.error('Error reviving plant:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Не удалось выполнить реанимацию',
+			});
+		}
+	}
+
+	// POST /biogarden/plants/:plantId/revive-answer — ответ на вопрос реанимации
+	async reviveAnswer(req: Request, res: Response) {
+		try {
+			const { plantId } = req.params;
+			const { telegramId, questionId, answerId } = req.body;
+
+			const user = await User.findOne({
+				where: { telegram_id: Number(telegramId) },
+			});
+			if (!user) {
+				return res.status(404).json({
+					success: false,
+					message: 'Пользователь не найден',
+				});
+			}
+
+			const progress = await UserBioGardenProgress.findOne({
+				where: {
+					user_id: user.id,
+					plant_id: Number(plantId),
+				},
+			});
+
+			if (!progress || !progress.is_wilted) {
+				return res.status(400).json({
+					success: false,
+					message: 'Растение не завяло',
+				});
+			}
+
+			const question = await BioGardenQuestion.findByPk(questionId, {
+				include: [{ model: BioGardenAnswerOption, as: 'options' }],
+			});
+			if (!question) {
+				return res.status(404).json({
+					success: false,
+					message: 'Вопрос не найден',
+				});
+			}
+
+			const q = question as unknown as {
+				options?: { id: number; is_correct: boolean }[];
+			};
+			const options = q.options || [];
+			const correctOption = options.find(
+				(o: { is_correct: boolean }) => o.is_correct,
+			);
+			const selected = options.find((o: { id: number }) => o.id === answerId);
+			if (!selected) {
+				return res.status(400).json({
+					success: false,
+					message: 'Вариант ответа не найден',
+				});
+			}
+
+			const isCorrect = selected.is_correct;
+			const now = new Date();
+
+			if (isCorrect) {
+				progress.health_points = 40;
+				progress.is_wilted = false;
+				progress.is_unlocked = true;
+				progress.revive_sleep_until = null;
+				progress.combo_count = 0;
+				progress.last_practiced_at = now;
+				await progress.save();
+
+				return res.json({
+					success: true,
+					data: {
+						is_correct: true,
+						revived: true,
+						health_points: 40,
+						explanation: question.explanation,
+						progress: {
+							health_points: progress.health_points,
+							is_wilted: progress.is_wilted,
+							is_unlocked: progress.is_unlocked,
+						},
+					},
+					message: 'Растение ожило!',
+				});
+			}
+
+			// Неверный ответ — спячка 24 часа (decay в cron не применяется)
+			const sleepUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+			progress.revive_sleep_until = sleepUntil;
+			await progress.save();
+
+			return res.json({
+				success: true,
+				data: {
+					is_correct: false,
+					revived: false,
+					correct_answer_id: correctOption?.id,
+					explanation: question.explanation,
+					revive_sleep_until: sleepUntil,
+					message: 'Растение в спячке 24 часа. Попробуйте снова завтра.',
+				},
+			});
+		} catch (error) {
+			console.error('Error revive answer:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Не удалось обработать ответ реанимации',
 			});
 		}
 	}

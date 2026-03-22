@@ -21,13 +21,22 @@ interface UserAttributes {
 	telegram_id: number;
 	username: string | null;
 	coins: number;
+	current_streak?: number;
+	longest_streak?: number;
+	last_active_date?: Date | null;
 	created_at: Date;
 }
 
 interface UserCreationAttributes
 	extends Optional<
 		UserAttributes,
-		'id' | 'username' | 'coins' | 'created_at'
+		| 'id'
+		| 'username'
+		| 'coins'
+		| 'created_at'
+		| 'current_streak'
+		| 'longest_streak'
+		| 'last_active_date'
 	> {}
 
 export class User
@@ -38,6 +47,9 @@ export class User
 	public telegram_id!: number;
 	public username!: string | null;
 	public coins!: number;
+	public current_streak?: number;
+	public longest_streak?: number;
+	public last_active_date?: Date | null;
 	public created_at!: Date;
 
 	// Timestamps
@@ -103,6 +115,20 @@ User.init(
 			type: DataTypes.INTEGER,
 			allowNull: false,
 			defaultValue: 0,
+		},
+		current_streak: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 0,
+		},
+		longest_streak: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 0,
+		},
+		last_active_date: {
+			type: DataTypes.DATE,
+			allowNull: true,
 		},
 		created_at: {
 			type: DataTypes.DATE,

@@ -18,6 +18,7 @@ import { BioGardenQuestion } from './BioGardenQuestion';
 import { BioGardenAnswerOption } from './BioGardenAnswerOption';
 import { UserBioGardenProgress } from './UserBioGardenProgress';
 import { UserBioGardenAttempt } from './UserBioGardenAttempt';
+import { UserTopicMastery } from './UserTopicMastery';
 import {
 	DownloadableTask,
 	TaskCollection,
@@ -258,5 +259,6 @@ export {
 	BioGardenAnswerOption,
 	UserBioGardenProgress,
 	UserBioGardenAttempt,
+	UserTopicMastery,
 	sequelize,
 };

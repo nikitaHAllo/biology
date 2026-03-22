@@ -1,6 +1,7 @@
 // routes/biogarden.routes.ts
 import { Router } from 'express';
 import { biogardenController } from '../controllers/biogarden.controller';
+import { bioGardenReadinessController } from '../controllers/biogarden-readiness.controller';
 
 
 const router = Router();
@@ -28,6 +29,19 @@ router.post('/plants/:plantId/water', (req, res) =>
 	biogardenController.waterPlant(req, res),
 );
 
+// Реанимация завядшего растения: за монеты или вопрос
+router.post('/plants/:plantId/revive', (req, res) =>
+	biogardenController.revive(req, res),
+);
+// Вопрос для реанимации (уровень ЕГЭ часть B)
+router.get('/plants/:plantId/revive-question', (req, res) =>
+	biogardenController.getReviveQuestion(req, res),
+);
+// Ответ на вопрос реанимации
+router.post('/plants/:plantId/revive-answer', (req, res) =>
+	biogardenController.reviveAnswer(req, res),
+);
+
 // Получить прогресс пользователя
 router.get('/progress', (req, res) =>
 	biogardenController.getProgress(req, res),
@@ -40,5 +54,10 @@ router.get('/plants/:plantId/progress', (req, res) =>
 
 // Получить статистику
 router.get('/stats', (req, res) => biogardenController.getStats(req, res));
+
+// Готовность к ЕГЭ по темам
+router.get('/ege-readiness', (req, res) =>
+	bioGardenReadinessController.getEgeReadiness(req, res),
+);
 
 export { router as biogardenRouter };
