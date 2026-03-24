@@ -18,25 +18,36 @@ import { AssignmentSubmission } from './AssignmentSubmission';
 
 interface UserAttributes {
 	id: number;
-	telegram_id: number;
+	telegram_id: number | null;
+	email: string | null;
+	password_hash: string | null;
 	username: string | null;
 	coins: number;
 	current_streak?: number;
 	longest_streak?: number;
 	last_active_date?: Date | null;
 	created_at: Date;
+	email_verified_at?: Date | null;
+	email_verification_code_hash?: string | null;
+	email_verification_expires_at?: Date | null;
 }
 
 interface UserCreationAttributes
 	extends Optional<
 		UserAttributes,
 		| 'id'
+		| 'telegram_id'
 		| 'username'
+		| 'email'
+		| 'password_hash'
 		| 'coins'
 		| 'created_at'
 		| 'current_streak'
 		| 'longest_streak'
 		| 'last_active_date'
+		| 'email_verified_at'
+		| 'email_verification_code_hash'
+		| 'email_verification_expires_at'
 	> {}
 
 export class User
@@ -44,13 +55,18 @@ export class User
 	implements UserAttributes
 {
 	public id!: number;
-	public telegram_id!: number;
+	public telegram_id!: number | null;
+	public email!: string | null;
+	public password_hash!: string | null;
 	public username!: string | null;
 	public coins!: number;
 	public current_streak?: number;
 	public longest_streak?: number;
 	public last_active_date?: Date | null;
 	public created_at!: Date;
+	public email_verified_at?: Date | null;
+	public email_verification_code_hash?: string | null;
+	public email_verification_expires_at?: Date | null;
 
 	// Timestamps
 	public readonly createdAt!: Date;
@@ -104,8 +120,15 @@ User.init(
 		},
 		telegram_id: {
 			type: DataTypes.BIGINT,
-			allowNull: false,
-			unique: true,
+			allowNull: true,
+		},
+		email: {
+			type: DataTypes.STRING,
+			allowNull: true,
+		},
+		password_hash: {
+			type: DataTypes.TEXT,
+			allowNull: true,
 		},
 		username: {
 			type: DataTypes.STRING,
@@ -134,6 +157,18 @@ User.init(
 			type: DataTypes.DATE,
 			allowNull: false,
 			defaultValue: DataTypes.NOW,
+		},
+		email_verified_at: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		email_verification_code_hash: {
+			type: DataTypes.TEXT,
+			allowNull: true,
+		},
+		email_verification_expires_at: {
+			type: DataTypes.DATE,
+			allowNull: true,
 		},
 	},
 	{

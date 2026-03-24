@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTelegram } from './useTelegram';
 import { apiService } from '../api';
+import { getAuthToken } from '../lib/authStorage';
 import type {
-    UserProfile,
-    UserStats,
-    LessonProgress,
-    Achievement,
+	UserProfile,
+	UserStats,
+	LessonProgress,
+	Achievement,
 } from '../models';
 
 interface UseUserDataReturn {
@@ -20,6 +21,7 @@ interface UseUserDataReturn {
 
 export const useUserData = (): UseUserDataReturn => {
 	const { user } = useTelegram();
+	const [authTick, setAuthTick] = useState(0);
 	const [profile, setProfile] = useState<UserProfile | null>(null);
 	const [stats, setStats] = useState<UserStats | null>(null);
 	const [progress, setProgress] = useState<LessonProgress[]>([]);
@@ -28,7 +30,24 @@ export const useUserData = (): UseUserDataReturn => {
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		if (!user) return;
+		const onAuth = () => setAuthTick(t => t + 1);
+		window.addEventListener('biology-auth-changed', onAuth);
+		return () => window.removeEventListener('biology-auth-changed', onAuth);
+	}, []);
+
+	useEffect(() => {
+		const token = getAuthToken();
+		if (!user && !token) {
+			setProfile(null);
+			setStats(null);
+			setProgress([]);
+			setAchievements([]);
+			setIsLoading(false);
+			setError(null);
+			return;
+		}
+
+		const telegramId = user?.id ?? 0;
 
 		const loadUserData = async (): Promise<void> => {
 			try {
@@ -37,10 +56,10 @@ export const useUserData = (): UseUserDataReturn => {
 
 				const [profileData, statsData, progressData, achievementsData] =
 					await Promise.all([
-						apiService.getUserProfile(user.id),
-						apiService.getUserStats(user.id),
-						apiService.getUserProgress(user.id),
-						apiService.getUserAchievements(user.id),
+						apiService.getUserProfile(telegramId),
+						apiService.getUserStats(telegramId),
+						apiService.getUserProgress(telegramId),
+						apiService.getUserAchievements(telegramId),
 					]);
 
 				setProfile(profileData);
@@ -60,16 +79,19 @@ export const useUserData = (): UseUserDataReturn => {
 		};
 
 		loadUserData();
-	}, [user]);
+	}, [user, authTick]);
 
 	const refreshData = async (): Promise<void> => {
-		if (!user) return;
+		const token = getAuthToken();
+		if (!user && !token) return;
+
+		const telegramId = user?.id ?? 0;
 
 		try {
 			setIsLoading(true);
 			const [profileData, statsData] = await Promise.all([
-				apiService.getUserProfile(user.id),
-				apiService.getUserStats(user.id),
+				apiService.getUserProfile(telegramId),
+				apiService.getUserStats(telegramId),
 			]);
 
 			setProfile(profileData);

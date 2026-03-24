@@ -15,6 +15,8 @@ import {
 } from '../models';
 import { seedCatalogData } from './seedCatalog';
 import { seedBioGardenData } from './seedBiogarden';
+import { migrateUserAuth } from './migrateUserAuth';
+import { migrateEmailVerification } from './migrateEmailVerification';
 
 export async function initDatabase() {
 	try {
@@ -25,6 +27,9 @@ export async function initDatabase() {
 		// Синхронизируем модели с базой данных
 		await sequelize.sync({ force: false }); // force: true удаляет таблицы и создает заново (только для разработки!)
 		console.log('✅ Database synchronized successfully.');
+
+		await migrateUserAuth();
+		await migrateEmailVerification();
 
 		await seedCatalogData();
 		console.log('✅ Catalog data ensured.');

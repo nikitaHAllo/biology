@@ -14,9 +14,12 @@ import ModulesPage, {
 	VirusDetectiveGame,
 } from './pages/MiniApp';
 import { BioGardenGame } from './components/game/BioGardenGame';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import { RootRedirect } from './components/RootRedirect';
 
-// Маршруты, где Header скрыт (игры на весь экран)
-const FULLSCREEN_ROUTES = ['/biogarden', '/genetics', '/virus'];
+// Маршруты, где Header скрыт (игры на весь экран / отдельные экраны)
+const FULLSCREEN_ROUTES = ['/biogarden', '/genetics', '/virus', '/login', '/register'];
 
 const AppLayout: React.FC = () => {
 	const location = useLocation();
@@ -28,9 +31,12 @@ const AppLayout: React.FC = () => {
 
 			<Routes>
 				{/* Основные страницы */}
-				<Route path='/' element={<Home />} />
+				<Route path='/' element={<RootRedirect />} />
+				<Route path='/home' element={<Home />} />
 				<Route path='/quiz' element={<QuizPage />} />
 				<Route path='/profile' element={<Profile />} />
+				<Route path='/login' element={<Login />} />
+				<Route path='/register' element={<Register />} />
 
 				{/* Страница со всеми модулями */}
 				<Route path='/mini' element={<ModulesPage />} />

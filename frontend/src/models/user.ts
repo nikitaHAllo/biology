@@ -2,7 +2,8 @@ import type { LessonProgress } from './lesson';
 
 export interface UserProfile {
 	id: number;
-	telegram_id: number;
+	telegram_id: number | null;
+	email?: string | null;
 	username: string | null;
 	coins: number;
 	created_at: string;
@@ -35,7 +36,7 @@ export interface UserProfileResponse {
 
 export interface UserStatsResponse {
 	profile: {
-		telegram_id: number;
+		telegram_id: number | null;
 		username: string | null;
 		coins: number;
 		member_since: string;
@@ -44,7 +45,7 @@ export interface UserStatsResponse {
 }
 
 export interface BalanceResponse {
-	telegram_id: number;
+	telegram_id: number | null;
 	username: string | null;
 	coins: number;
 }

@@ -3,7 +3,7 @@ import { User, WalletTransaction } from '../models';
 // Интерфейс для профиля пользователя
 interface UserProfile {
 	id: number;
-	telegram_id: number;
+	telegram_id: number | null;
 	username: string | null;
 	coins: number;
 	created_at: Date;
