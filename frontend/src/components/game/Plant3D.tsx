@@ -9,6 +9,8 @@ interface Plant3DProps {
 	position: [number, number, number];
 	isSelected: boolean;
 	onSelect: (plant: BioGardenPlant) => void;
+	onHover: (plant: BioGardenPlant) => void;
+	onHoverEnd: () => void;
 }
 
 // Цветовая палитра для каждого растения
@@ -21,7 +23,14 @@ const PLANT_PALETTE: Record<number, { leaf: string; flower: string; stem: string
 	6: { leaf: '#4ade80', flower: '#a78bfa', stem: '#15803d' }, // Картофель — зелёный/фиолет
 };
 
-export const Plant3D = ({ plant, position, isSelected, onSelect }: Plant3DProps) => {
+export const Plant3D = ({
+	plant,
+	position,
+	isSelected,
+	onSelect,
+	onHover,
+	onHoverEnd,
+}: Plant3DProps) => {
 	const groupRef = useRef<Group>(null);
 	const [hovered, setHovered] = useState(false);
 
@@ -32,8 +41,6 @@ export const Plant3D = ({ plant, position, isSelected, onSelect }: Plant3DProps)
 
 	const stemHeight = 0.15 + stageRatio * 1.4;
 	const leafScale = 0.07 + stageRatio * 0.3;
-
-	const hpColor = healthRatio > 0.6 ? '#4ade80' : healthRatio > 0.3 ? '#fbbf24' : '#f87171';
 
 	// Мягкое покачивание + вращение при выборе
 	useFrame(state => {
@@ -56,10 +63,12 @@ export const Plant3D = ({ plant, position, isSelected, onSelect }: Plant3DProps)
 			onPointerOver={e => {
 				e.stopPropagation();
 				setHovered(true);
+				onHover(plant);
 				document.body.style.cursor = 'pointer';
 			}}
 			onPointerOut={() => {
 				setHovered(false);
+				onHoverEnd();
 				document.body.style.cursor = 'default';
 			}}
 		>
@@ -175,57 +184,32 @@ export const Plant3D = ({ plant, position, isSelected, onSelect }: Plant3DProps)
 				</mesh>
 			)}
 
-			{/* HP-бар над растением */}
-			{plant.is_unlocked && (
-				<Html
-					position={[0, stemHeight + leafScale * 2.0 + 0.25, 0]}
-					center
-					style={{ pointerEvents: 'none' }}
+			{/* Название растения сверху */}
+			<Html
+				position={[0, stemHeight + leafScale * 2.0 + 0.55, 0]}
+				center
+				zIndexRange={[1, 0]}
+				style={{ pointerEvents: 'none' }}
+			>
+				<div
+					style={{
+						background: 'rgba(0,0,0,0.72)',
+						borderRadius: 8,
+						padding: '4px 9px',
+						border: '1px solid rgba(255,255,255,0.16)',
+						color: 'rgba(255,255,255,0.95)',
+						fontSize: 11,
+						fontWeight: 600,
+						whiteSpace: 'nowrap',
+						fontFamily: 'system-ui, sans-serif',
+						textAlign: 'center',
+						userSelect: 'none',
+					}}
 				>
-					<div
-						style={{
-							background: 'rgba(0,0,0,0.68)',
-							borderRadius: 6,
-							padding: '3px 8px',
-							minWidth: 72,
-							backdropFilter: 'blur(6px)',
-							border: '1px solid rgba(255,255,255,0.12)',
-							userSelect: 'none',
-						}}
-					>
-						<div
-							style={{
-								height: 5,
-								background: 'rgba(255,255,255,0.15)',
-								borderRadius: 3,
-								overflow: 'hidden',
-							}}
-						>
-							<div
-								style={{
-									height: '100%',
-									width: `${Math.max(0, healthRatio * 100)}%`,
-									background: hpColor,
-									transition: 'width 0.4s ease',
-									borderRadius: 3,
-								}}
-							/>
-						</div>
-						<div
-							style={{
-								color: 'rgba(255,255,255,0.9)',
-								fontSize: 9,
-								textAlign: 'center',
-								marginTop: 3,
-								fontFamily: 'system-ui, sans-serif',
-								whiteSpace: 'nowrap',
-							}}
-						>
-							{plant.name}
-						</div>
-					</div>
-				</Html>
-			)}
+					{plant.name}
+				</div>
+			</Html>
+
 		</group>
 	);
 };

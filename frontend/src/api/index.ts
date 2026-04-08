@@ -22,11 +22,11 @@ import type { CompleteQuizResponse } from '../models/task';
 import type { CompleteQuizPayload } from '../models/quiz';
 import type { TopicAccessCheck } from '../models/material';
 import type {
-	AnswerResponse,
+	EgeReadinessResponse,
 	PlantProgressResponse,
 	PlantsListResponse,
 	ProgressResponse,
-	QuestionResponse,
+	ReviveResponse,
 	StartPlantResponse,
 	StatsResponse,
 	WaterPlantResponse,
@@ -264,42 +264,24 @@ class ApiService {
 		return response.data.data;
 	}
 
-	async getCurrentQuestion(
-		telegramId: number,
-		plantId: number,
-	): Promise<QuestionResponse> {
-		const response = await this.api.get(
-			`/biogarden/plants/${plantId}/current-question`,
-			{
-				params: { telegramId },
-			},
-		);
-		return response.data.data;
-	}
-
-	async submitAnswer(
-		telegramId: number,
-		plantId: number,
-		questionId: number,
-		answerId: number,
-	): Promise<AnswerResponse> {
-		const response = await this.api.post(
-			`/biogarden/plants/${plantId}/answer`,
-			{
-				telegramId,
-				questionId,
-				answerId,
-			},
-		);
-		return response.data.data;
-	}
-
 	async waterPlant(
 		telegramId: number,
 		plantId: number,
 	): Promise<WaterPlantResponse> {
 		const response = await this.api.post(`/biogarden/plants/${plantId}/water`, {
 			telegramId,
+		});
+		return response.data.data;
+	}
+
+	async revivePlant(
+		telegramId: number,
+		plantId: number,
+		mode: 'coins' | 'question',
+	): Promise<ReviveResponse> {
+		const response = await this.api.post(`/biogarden/plants/${plantId}/revive`, {
+			telegramId,
+			mode,
 		});
 		return response.data.data;
 	}
@@ -326,6 +308,13 @@ class ApiService {
 
 	async getBiogardenStats(telegramId: number): Promise<StatsResponse> {
 		const response = await this.api.get('/biogarden/stats', {
+			params: { telegramId },
+		});
+		return response.data.data;
+	}
+
+	async getEgeReadiness(telegramId: number): Promise<EgeReadinessResponse> {
+		const response = await this.api.get('/biogarden/ege-readiness', {
 			params: { telegramId },
 		});
 		return response.data.data;

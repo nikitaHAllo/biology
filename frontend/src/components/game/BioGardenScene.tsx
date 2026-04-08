@@ -5,38 +5,40 @@ import * as THREE from 'three';
 import { Plant3D } from './Plant3D';
 import type { BioGardenPlant } from '../../models/biogarden';
 
-// Позиции горшков: 2 ряда по 3 растения
+// Позиции горшков: 2 ряда по 4 растения (8 всего)
 const PLANT_POSITIONS: [number, number, number][] = [
-	[-2.4, 0, -1.65],
-	[0, 0, -1.65],
-	[2.4, 0, -1.65],
-	[-2.4, 0, 1.65],
-	[0, 0, 1.65],
-	[2.4, 0, 1.65],
+	[-3.6, 0, -1.65],
+	[-1.2, 0, -1.65],
+	[1.2, 0, -1.65],
+	[3.6, 0, -1.65],
+	[-3.6, 0, 1.65],
+	[-1.2, 0, 1.65],
+	[1.2, 0, 1.65],
+	[3.6, 0, 1.65],
 ];
 
 // Грядки-короба
 const PlanterBed = ({ z }: { z: number }) => (
 	<group position={[0, 0, z]}>
 		<mesh position={[0, -0.46, 0.66]} castShadow receiveShadow>
-			<boxGeometry args={[6.2, 0.26, 0.07]} />
+			<boxGeometry args={[8.6, 0.26, 0.07]} />
 			<meshStandardMaterial color='#8b5e3c' roughness={0.85} />
 		</mesh>
 		<mesh position={[0, -0.46, -0.66]} castShadow receiveShadow>
-			<boxGeometry args={[6.2, 0.26, 0.07]} />
+			<boxGeometry args={[8.6, 0.26, 0.07]} />
 			<meshStandardMaterial color='#8b5e3c' roughness={0.85} />
 		</mesh>
-		<mesh position={[3.1, -0.46, 0]} castShadow receiveShadow>
+		<mesh position={[4.3, -0.46, 0]} castShadow receiveShadow>
 			<boxGeometry args={[0.07, 0.26, 1.32]} />
 			<meshStandardMaterial color='#8b5e3c' roughness={0.85} />
 		</mesh>
-		<mesh position={[-3.1, -0.46, 0]} castShadow receiveShadow>
+		<mesh position={[-4.3, -0.46, 0]} castShadow receiveShadow>
 			<boxGeometry args={[0.07, 0.26, 1.32]} />
 			<meshStandardMaterial color='#8b5e3c' roughness={0.85} />
 		</mesh>
 		{/* Земля внутри короба */}
 		<mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.585, 0]} receiveShadow>
-			<planeGeometry args={[6.1, 1.22]} />
+			<planeGeometry args={[8.5, 1.22]} />
 			<meshStandardMaterial color='#2c1810' roughness={1} />
 		</mesh>
 	</group>
@@ -121,6 +123,8 @@ interface BioGardenSceneProps {
 	plants: BioGardenPlant[];
 	selectedPlantId: number | null;
 	onPlantSelect: (plant: BioGardenPlant) => void;
+	onPlantHover: (plant: BioGardenPlant) => void;
+	onPlantHoverEnd: () => void;
 	onDeselect: () => void;
 }
 
@@ -128,6 +132,8 @@ export const BioGardenScene = ({
 	plants,
 	selectedPlantId,
 	onPlantSelect,
+	onPlantHover,
+	onPlantHoverEnd,
 	onDeselect,
 }: BioGardenSceneProps) => {
 	const selectedIdx = plants.findIndex(p => p.id === selectedPlantId);
@@ -140,7 +146,7 @@ export const BioGardenScene = ({
 			style={{
 				background: 'linear-gradient(to bottom, #080d1a 0%, #142238 55%, #0b1a0b 100%)',
 			}}
-			onClick={onDeselect}
+			onPointerMissed={onDeselect}
 		>
 			<Suspense fallback={null}>
 				{/* Освещение */}
@@ -170,13 +176,15 @@ export const BioGardenScene = ({
 				<Fence />
 
 				{/* Растения */}
-				{plants.slice(0, 6).map((plant, index) => (
+				{plants.slice(0, 8).map((plant, index) => (
 					<Plant3D
 						key={plant.id}
 						plant={plant}
 						position={PLANT_POSITIONS[index] ?? [0, 0, 0]}
 						isSelected={selectedPlantId === plant.id}
 						onSelect={onPlantSelect}
+						onHover={onPlantHover}
+						onHoverEnd={onPlantHoverEnd}
 					/>
 				))}
 

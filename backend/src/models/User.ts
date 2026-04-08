@@ -54,52 +54,52 @@ export class User
 	extends Model<UserAttributes, UserCreationAttributes>
 	implements UserAttributes
 {
-	public id!: number;
-	public telegram_id!: number | null;
-	public email!: string | null;
-	public password_hash!: string | null;
-	public username!: string | null;
-	public coins!: number;
-	public current_streak?: number;
-	public longest_streak?: number;
-	public last_active_date?: Date | null;
-	public created_at!: Date;
-	public email_verified_at?: Date | null;
-	public email_verification_code_hash?: string | null;
-	public email_verification_expires_at?: Date | null;
+	declare id: number;
+	declare telegram_id: number | null;
+	declare email: string | null;
+	declare password_hash: string | null;
+	declare username: string | null;
+	declare coins: number;
+	declare current_streak?: number;
+	declare longest_streak?: number;
+	declare last_active_date?: Date | null;
+	declare created_at: Date;
+	declare email_verified_at?: Date | null;
+	declare email_verification_code_hash?: string | null;
+	declare email_verification_expires_at?: Date | null;
 
 	// Timestamps
-	public readonly createdAt!: Date;
-	public readonly updatedAt!: Date;
+	declare readonly createdAt: Date;
+	declare readonly updatedAt: Date;
 
 	// Association methods
-	public getTransactions!: HasManyGetAssociationsMixin<WalletTransaction>;
-	public addTransaction!: HasManyAddAssociationMixin<WalletTransaction, number>;
-	public hasTransaction!: HasManyHasAssociationMixin<WalletTransaction, number>;
-	public countTransactions!: HasManyCountAssociationsMixin;
-	public createTransaction!: HasManyCreateAssociationMixin<WalletTransaction>;
+	declare getTransactions: HasManyGetAssociationsMixin<WalletTransaction>;
+	declare addTransaction: HasManyAddAssociationMixin<WalletTransaction, number>;
+	declare hasTransaction: HasManyHasAssociationMixin<WalletTransaction, number>;
+	declare countTransactions: HasManyCountAssociationsMixin;
+	declare createTransaction: HasManyCreateAssociationMixin<WalletTransaction>;
 
-	public getProgress!: HasManyGetAssociationsMixin<UserProgress>;
-	public addProgress!: HasManyAddAssociationMixin<UserProgress, number>;
-	public hasProgress!: HasManyHasAssociationMixin<UserProgress, number>;
-	public countProgress!: HasManyCountAssociationsMixin;
-	public createProgress!: HasManyCreateAssociationMixin<UserProgress>;
+	declare getProgress: HasManyGetAssociationsMixin<UserProgress>;
+	declare addProgress: HasManyAddAssociationMixin<UserProgress, number>;
+	declare hasProgress: HasManyHasAssociationMixin<UserProgress, number>;
+	declare countProgress: HasManyCountAssociationsMixin;
+	declare createProgress: HasManyCreateAssociationMixin<UserProgress>;
 
-	public getAchievements!: HasManyGetAssociationsMixin<UserAchievement>;
-	public addAchievement!: HasManyAddAssociationMixin<UserAchievement, number>;
-	public hasAchievement!: HasManyHasAssociationMixin<UserAchievement, number>;
-	public countAchievements!: HasManyCountAssociationsMixin;
-	public createAchievement!: HasManyCreateAssociationMixin<UserAchievement>;
+	declare getAchievements: HasManyGetAssociationsMixin<UserAchievement>;
+	declare addAchievement: HasManyAddAssociationMixin<UserAchievement, number>;
+	declare hasAchievement: HasManyHasAssociationMixin<UserAchievement, number>;
+	declare countAchievements: HasManyCountAssociationsMixin;
+	declare createAchievement: HasManyCreateAssociationMixin<UserAchievement>;
 
-	public getQuizResults!: HasManyGetAssociationsMixin<UserQuizResult>;
-	public getSubmissions!: HasManyGetAssociationsMixin<AssignmentSubmission>;
+	declare getQuizResults: HasManyGetAssociationsMixin<UserQuizResult>;
+	declare getSubmissions: HasManyGetAssociationsMixin<AssignmentSubmission>;
 
 	// Association properties
-	public readonly transactions?: WalletTransaction[];
-	public readonly progress?: UserProgress[];
-	public readonly achievements?: UserAchievement[];
-	public readonly quizResults?: UserQuizResult[];
-	public readonly submissions?: AssignmentSubmission[];
+	declare readonly transactions?: WalletTransaction[];
+	declare readonly progress?: UserProgress[];
+	declare readonly achievements?: UserAchievement[];
+	declare readonly quizResults?: UserQuizResult[];
+	declare readonly submissions?: AssignmentSubmission[];
 
 	// Static associations
 	public static associations: {

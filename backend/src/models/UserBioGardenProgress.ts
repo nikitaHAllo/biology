@@ -52,29 +52,29 @@ export class UserBioGardenProgress
 	>
 	implements UserBioGardenProgressAttributes
 {
-	public id!: number;
-	public user_id!: number;
-	public plant_id!: number;
-	public current_stage!: number;
-	public experience_points!: number;
-	public health_points!: number;
-	public max_health_points!: number;
-	public is_completed!: boolean;
-	public is_unlocked!: boolean;
-	public combo_count!: number;
-	public last_practiced_at!: Date | null;
-	public is_wilted!: boolean;
-	public revive_sleep_until!: Date | null;
-	public last_decay_at!: Date | null;
-	public last_watered_at!: Date | null;
-	public planted_at!: Date;
-	public completed_at!: Date | null;
-	public created_at!: Date;
-	public updated_at!: Date;
+	declare id: number;
+	declare user_id: number;
+	declare plant_id: number;
+	declare current_stage: number;
+	declare experience_points: number;
+	declare health_points: number;
+	declare max_health_points: number;
+	declare is_completed: boolean;
+	declare is_unlocked: boolean;
+	declare combo_count: number;
+	declare last_practiced_at: Date | null;
+	declare is_wilted: boolean;
+	declare revive_sleep_until: Date | null;
+	declare last_decay_at: Date | null;
+	declare last_watered_at: Date | null;
+	declare planted_at: Date;
+	declare completed_at: Date | null;
+	declare created_at: Date;
+	declare updated_at: Date;
 
 	// TypeScript declaration for associations
-	public readonly plant?: BioGardenPlant;
-	public readonly user?: import('./User').User;
+	declare readonly plant?: BioGardenPlant;
+	declare readonly user?: import('./User').User;
 }
 
 UserBioGardenProgress.init(

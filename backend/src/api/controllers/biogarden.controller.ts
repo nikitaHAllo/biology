@@ -135,6 +135,7 @@ class BioGardenController {
 
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
+				raw: true,
 			});
 
 			if (!user) {
@@ -241,6 +242,7 @@ class BioGardenController {
 
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
+				raw: true,
 			});
 
 			if (!user) {
@@ -279,7 +281,7 @@ class BioGardenController {
 			}
 
 			// Вопрос для стадии: подходят уровни от 1 до current_stage (стадия 2 = блок А, 3–4 = средний/часть B)
-			const question = await BioGardenQuestion.findOne({
+			let question = await BioGardenQuestion.findOne({
 				where: {
 					plant_id: Number(plantId),
 					difficulty_level: { [Op.lte]: progress.current_stage },
@@ -294,6 +296,24 @@ class BioGardenController {
 				],
 				order: sequelize.random(),
 			});
+
+			// Фолбэк: если для текущей стадии нет вопросов, берем любой активный вопрос этого растения.
+			// Это защищает игру от "зависания", если сиды по сложностям заполнены неравномерно.
+			if (!question) {
+				question = await BioGardenQuestion.findOne({
+					where: {
+						plant_id: Number(plantId),
+						is_active: true,
+					},
+					include: [
+						{
+							model: BioGardenAnswerOption,
+							as: 'options',
+						},
+					],
+					order: sequelize.random(),
+				});
+			}
 
 			if (!question) {
 				return res.status(404).json({
@@ -355,6 +375,7 @@ class BioGardenController {
 
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
+				raw: true,
 			});
 
 			if (!user) {
@@ -721,6 +742,7 @@ class BioGardenController {
 
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
+				raw: true,
 			});
 
 			if (!user) {
@@ -807,6 +829,7 @@ class BioGardenController {
 
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
+				raw: true,
 			});
 
 			if (!user) {
@@ -859,7 +882,7 @@ class BioGardenController {
 				}
 			});
 
-			const userPlain = user.get({ plain: true }) as {
+			const userPlain = user as {
 				current_streak?: number;
 				longest_streak?: number;
 			};
@@ -915,6 +938,7 @@ class BioGardenController {
 
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
+				raw: true,
 			});
 
 			if (!user) {
@@ -1021,6 +1045,7 @@ class BioGardenController {
 
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
+				raw: true,
 			});
 
 			if (!user) {
@@ -1053,7 +1078,7 @@ class BioGardenController {
 				limit: 5,
 			});
 
-			const userPlain = user.get({ plain: true }) as {
+			const userPlain = user as {
 				current_streak?: number;
 				longest_streak?: number;
 			};
@@ -1102,6 +1127,7 @@ class BioGardenController {
 
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
+				raw: true,
 			});
 			if (!user) {
 				return res.status(404).json({
@@ -1306,6 +1332,7 @@ class BioGardenController {
 
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
+				raw: true,
 			});
 			if (!user) {
 				return res.status(404).json({

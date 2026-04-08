@@ -30,6 +30,7 @@ export interface TelegramThemeParams {
 }
 
 export interface TelegramWebApp {
+	initData?: string;
 	initDataUnsafe: {
 		user: TelegramUser;
 		query_id?: string;

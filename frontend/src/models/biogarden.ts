@@ -14,39 +14,11 @@ export interface BioGardenPlant {
 	experience_points: number;
 	health_points: number;
 	max_health_points: number;
+	hp_state?: 'healthy' | 'medium' | 'low' | 'critical' | 'dead';
 	is_completed: boolean;
 	planted_at: string | null;
-}
-
-export interface BioGardenQuestion {
-	id: number;
-	question_text: string;
-	biology_topic: string;
-	ege_code: string;
-	points: number;
-	options: Array<{
-		id: number;
-		option_text: string;
-		order_index: number;
-	}>;
-	current_stage: number;
-	total_stages: number;
-}
-
-export interface BioGardenAnswer {
-	is_correct: boolean;
-	correct_answer_id: number | null;
-	explanation: string;
-	earned_experience: number;
-	earned_coins: number;
-	progress: {
-		current_stage: number;
-		experience_points: number;
-		health_points: number;
-		max_health_points: number;
-		is_completed: boolean;
-		is_unlocked: boolean;
-	};
+	is_wilted?: boolean;
+	revive_sleep_until?: string | null;
 }
 
 export interface BioGardenProgress {
@@ -68,6 +40,8 @@ export interface BioGardenStatistics {
 	correct_answers: number;
 	accuracy: number;
 	topic_stats: Record<string, { total: number; correct: number }>;
+	current_streak?: number;
+	longest_streak?: number;
 }
 
 export interface BioGardenPlantProgress {
@@ -101,6 +75,8 @@ export interface BioGardenOverview {
 	total_attempts: number;
 	total_experience_earned: number;
 	total_coins_earned: number;
+	current_streak?: number;
+	longest_streak?: number;
 }
 
 export interface TopPlant {
@@ -132,29 +108,29 @@ export interface StartPlantResponse {
 	};
 }
 
-export interface QuestionResponse {
-	question: BioGardenQuestion;
-	progress: {
-		current_stage: number;
-		health_points: number;
-		experience_points: number;
-	};
+export interface ReviveResponse {
+	revived: boolean;
+	health_points?: number;
+	coins_spent?: number;
+	message?: string;
 }
 
-export interface AnswerResponse {
-	is_correct: boolean;
-	correct_answer_id: number | null;
-	explanation: string;
-	earned_experience: number;
-	earned_coins: number;
-	progress: {
-		current_stage: number;
-		experience_points: number;
-		health_points: number;
-		max_health_points: number;
-		is_completed: boolean;
-		is_unlocked: boolean;
-	};
+export interface EgeReadinessResponse {
+	overall_ege_readiness: number;
+	accuracy_per_ege_code: Record<
+		string,
+		{
+			accuracy: number;
+			mastery_level: string;
+		}
+	>;
+	weak_topics: string[];
+	strong_topics: string[];
+	sections: Array<{
+		plant_id: number;
+		name: string;
+		difficulty_level: number;
+	}>;
 }
 
 export interface WaterPlantResponse {
