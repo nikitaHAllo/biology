@@ -1,36 +1,37 @@
 {
-	"compilerOptions": {
-		"rootDir": "./src",
-		"outDir": "./dist",
-		"module": "CommonJS",
-		"moduleResolution": "Node",
-		"target": "ES2022",
-		"lib": ["ES2022"],
-		"types": ["node"],
-		"allowJs": true,
-		"esModuleInterop": true, // Other Outputs
-		"sourceMap": true,
-		"declaration": true,
-		"declarationMap": true,
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "target": "ES2022",
+    "useDefineForClassFields": false,
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "allowJs": true,
+    "esModuleInterop": true, // Other Outputs
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
 
-		// Stricter Typechecking Options
-		"noUncheckedIndexedAccess": true,
-		"exactOptionalPropertyTypes": true,
+    // Stricter Typechecking Options
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
 
-		// Style Options
-		// "noImplicitReturns": true,
-		// "noImplicitOverride": true,
-		// "noUnusedLocals": true,
-		// "noUnusedParameters": true,
-		// "noFallthroughCasesInSwitch": true,
-		// "noPropertyAccessFromIndexSignature": true,
+    // Style Options
+    // "noImplicitReturns": true,
+    // "noImplicitOverride": true,
+    // "noUnusedLocals": true,
+    // "noUnusedParameters": true,
+    // "noFallthroughCasesInSwitch": true,
+    // "noPropertyAccessFromIndexSignature": true,
 
-		// Recommended Options
-		"strict": true,
-		"jsx": "react-jsx",
-		"isolatedModules": false,
-		"noUncheckedSideEffectImports": false,
-		"moduleDetection": "auto",
-		"skipLibCheck": true
-	}
+    // Recommended Options
+    "strict": true,
+    "jsx": "react-jsx",
+    "isolatedModules": false,
+    "noUncheckedSideEffectImports": false,
+    "moduleDetection": "auto",
+    "skipLibCheck": true
+  }
 }

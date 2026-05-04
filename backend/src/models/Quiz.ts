@@ -9,6 +9,9 @@ export interface QuizAttributes {
 	total_points: number;
 	estimated_minutes?: number | null;
 	is_active: boolean;
+	coins_reward: number;
+	difficulty: 'easy' | 'medium' | 'hard';
+	topic_tag?: string | null;
 	created_at?: Date;
 	updated_at?: Date;
 }
@@ -16,7 +19,7 @@ export interface QuizAttributes {
 interface QuizCreationAttributes
 	extends Optional<
 		QuizAttributes,
-		'id' | 'description' | 'total_questions' | 'total_points' | 'estimated_minutes' | 'is_active' | 'created_at' | 'updated_at'
+		'id' | 'description' | 'total_questions' | 'total_points' | 'estimated_minutes' | 'is_active' | 'coins_reward' | 'difficulty' | 'topic_tag' | 'created_at' | 'updated_at'
 	> {}
 
 export class Quiz
@@ -30,6 +33,9 @@ export class Quiz
 	public total_points!: number;
 	public estimated_minutes?: number | null;
 	public is_active!: boolean;
+	public coins_reward!: number;
+	public difficulty!: 'easy' | 'medium' | 'hard';
+	public topic_tag?: string | null;
 	public readonly created_at?: Date;
 	public readonly updated_at?: Date;
 }
@@ -67,6 +73,20 @@ Quiz.init(
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 			defaultValue: true,
+		},
+		coins_reward: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 0,
+		},
+		difficulty: {
+			type: DataTypes.ENUM('easy', 'medium', 'hard'),
+			allowNull: false,
+			defaultValue: 'medium',
+		},
+		topic_tag: {
+			type: DataTypes.STRING,
+			allowNull: true,
 		},
 	},
 	{

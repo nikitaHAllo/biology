@@ -15,7 +15,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { IconLeaf } from '@tabler/icons-react';
 import { apiService } from '../api';
-import { setAuthToken } from '../lib/authStorage';
+import { setAuthTokens } from '../lib/authStorage';
 
 const Login: React.FC = () => {
 	const navigate = useNavigate();
@@ -33,8 +33,8 @@ const Login: React.FC = () => {
 		e.preventDefault();
 		setLoading(true);
 		try {
-			const { token } = await apiService.login(email.trim(), password);
-			setAuthToken(token);
+			const { accessToken, refreshToken } = await apiService.login(email.trim(), password);
+			setAuthTokens(accessToken, refreshToken);
 			notifications.show({
 				title: 'С возвращением!',
 				message: 'Вы вошли в аккаунт',

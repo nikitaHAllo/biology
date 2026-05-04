@@ -1,74 +1,52 @@
-import { useState } from 'react'
-import { useAuth } from '@/hooks/useAuth'
-import toast from 'react-hot-toast'
+import { useState } from 'react';
+import { api } from '../api';
+import { auth } from '../auth';
 
-export default function LoginPage() {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const { login } = useAuth()
+interface Props {
+  onLogin: () => void;
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (login(username, password)) {
-      toast.success('Вход выполнен успешно')
-    } else {
-      toast.error('Неверные данные')
+export default function LoginPage({ onLogin }: Props) {
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const { token } = await api.login(password);
+      auth.setToken(token);
+      onLogin();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Ошибка входа');
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
-      <div className="card w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Biology EGE Admin
-          </h1>
-          <p className="text-gray-600">Войдите в админ-панель</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              Имя пользователя
-            </label>
+    <div className="login-wrap">
+      <div className="login-card">
+        <h1>Вход в админку</h1>
+        <form onSubmit={handleSubmit}>
+          <label>
+            Пароль
             <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="input"
-              placeholder="admin"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              Пароль
-            </label>
-            <input
-              id="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input"
-              placeholder="Введите пароль"
+              onChange={e => setPassword(e.target.value)}
+              autoFocus
               required
             />
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary w-full"
-          >
-            Войти
+          </label>
+          {error && <p className="error">{error}</p>}
+          <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+            {loading ? 'Вход...' : 'Войти'}
           </button>
         </form>
-
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Для демо используйте любой логин и пароль</p>
-        </div>
       </div>
     </div>
-  )
+  );
 }

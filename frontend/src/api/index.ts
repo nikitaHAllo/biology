@@ -31,10 +31,9 @@ import type {
 	StatsResponse,
 	WaterPlantResponse,
 } from '../models/biogarden';
-import { clearAuthToken, getAuthToken } from '../lib/authStorage';
+import type { GeneticScenario } from '../models/genetics';
+import { clearAuthToken, getAuthToken, getRefreshToken, setAuthToken, setRefreshToken } from '../lib/authStorage';
 
-// В режиме разработки через dev tunnel используем переменную окружения,
-// иначе — localhost (для прямого запуска в браузере)
 const API_BASE_URL =
 	import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 
@@ -47,19 +46,18 @@ export interface AuthUser {
 	created_at?: string;
 }
 
-export interface AuthLoginResult {
-	token: string;
+export interface AuthResult {
+	accessToken: string;
+	refreshToken: string;
 	user: AuthUser;
 }
 
-/** Регистрация без токена — нужно подтвердить email */
-export interface RegisterPendingResult {
-	needsVerification: true;
-	email: string;
-}
+// backward-compat alias
+export type AuthLoginResult = AuthResult;
 
 class ApiService {
 	private api;
+	private _refreshing = false;
 
 	constructor() {
 		this.api = axios.create({
@@ -76,10 +74,35 @@ class ApiService {
 
 		this.api.interceptors.response.use(
 			r => r,
-			err => {
-				if (err.response?.status === 401 && getAuthToken()) {
-					clearAuthToken();
-					if (typeof window !== 'undefined') {
+			async err => {
+				const original = err.config;
+				if (
+					err.response?.status === 401 &&
+					!original._retry &&
+					original.url !== '/auth/refresh'
+				) {
+					original._retry = true;
+					const refreshToken = getRefreshToken();
+					if (refreshToken && !this._refreshing) {
+						this._refreshing = true;
+						try {
+							const res = await this.api.post<ApiResponse<{ accessToken: string; refreshToken: string }>>(
+								'/auth/refresh',
+								{ refreshToken },
+							);
+							const { accessToken, refreshToken: newRefresh } = res.data.data;
+							setAuthToken(accessToken);
+							setRefreshToken(newRefresh);
+							original.headers.Authorization = `Bearer ${accessToken}`;
+							return this.api(original);
+						} catch {
+							clearAuthToken();
+							window.location.href = '/login';
+						} finally {
+							this._refreshing = false;
+						}
+					} else {
+						clearAuthToken();
 						const p = window.location.pathname;
 						if (p !== '/login' && p !== '/register') {
 							window.location.href = '/login';
@@ -91,30 +114,16 @@ class ApiService {
 		);
 	}
 
-	async register(
-		email: string,
-		password: string,
-		username?: string,
-	): Promise<RegisterPendingResult> {
-		const response = await this.api.post<
-			ApiResponse<RegisterPendingResult>
-		>('/auth/register', { email, password, username });
+	async register(email: string, password: string, username?: string): Promise<AuthResult> {
+		const response = await this.api.post<ApiResponse<AuthResult>>(
+			'/auth/register',
+			{ email, password, username },
+		);
 		return response.data.data;
 	}
 
-	async verifyEmail(email: string, code: string): Promise<AuthLoginResult> {
-		const response = await this.api.post<
-			ApiResponse<AuthLoginResult>
-		>('/auth/verify-email', { email: email.trim(), code });
-		return response.data.data;
-	}
-
-	async resendVerificationCode(email: string): Promise<void> {
-		await this.api.post('/auth/resend-code', { email: email.trim() });
-	}
-
-	async login(email: string, password: string): Promise<AuthLoginResult> {
-		const response = await this.api.post<ApiResponse<AuthLoginResult>>(
+	async login(email: string, password: string): Promise<AuthResult> {
+		const response = await this.api.post<ApiResponse<AuthResult>>(
 			'/auth/login',
 			{ email, password },
 		);
@@ -317,6 +326,22 @@ class ApiService {
 		const response = await this.api.get('/biogarden/ege-readiness', {
 			params: { telegramId },
 		});
+		return response.data.data;
+	}
+
+	// ── Genetics ────────────────────────────────────────────────────────────
+	async getGeneticScenarios(): Promise<{ scenarios: GeneticScenario[] }> {
+		const response = await this.api.get('/genetics/scenarios');
+		return response.data.data;
+	}
+
+	async getGeneticScenario(id: number): Promise<{ scenario: GeneticScenario }> {
+		const response = await this.api.get(`/genetics/scenarios/${id}`);
+		return response.data.data;
+	}
+
+	async completeGeneticScenario(id: number, score: number): Promise<{ coins_earned: number; score: number }> {
+		const response = await this.api.post(`/genetics/scenarios/${id}/complete`, { score });
 		return response.data.data;
 	}
 }

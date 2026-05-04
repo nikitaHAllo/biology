@@ -106,7 +106,7 @@ class QuizzesController {
 	async complete(req: Request, res: Response) {
 		try {
 			const { quizId } = req.params;
-			const { telegramId, score, earned_coins } = req.body;
+			const { telegramId, score } = req.body;
 
 			const quizIdNum = Number(quizId);
 			if (!Number.isInteger(quizIdNum) || quizIdNum <= 0) {
@@ -117,7 +117,12 @@ class QuizzesController {
 			}
 
 			const scoreNum = Number(score);
-			const earnedCoinsNum = Number(earned_coins);
+
+			const quiz = await Quiz.findByPk(quizIdNum, { raw: true });
+			if (!quiz) {
+				return res.status(404).json({ success: false, message: 'Викторина не найдена' });
+			}
+
 			const user = await User.findOne({
 				where: { telegram_id: telegramId },
 				raw: true,
@@ -128,79 +133,59 @@ class QuizzesController {
 					.status(404)
 					.json({ success: false, message: 'Пользователь не найден' });
 
-			console.log('Айди', user, user.id);
-
-			const status = scoreNum >= 2 ? 'completed' : 'pending';
-			const isPassed = status === 'completed';
+			// Пройден полностью = все вопросы правильно
+			const isPassed = scoreNum === quiz.total_questions && quiz.total_questions > 0;
+			const status = isPassed ? 'completed' : 'pending';
 
 			const existing = await UserQuizResult.findOne({
-				where: {
-					user_id: user.id,
-					quiz_id: quizIdNum,
-				},
+				where: { user_id: user.id, quiz_id: quizIdNum },
 				raw: true,
 			});
 
 			let userQuizResult;
-			let isNewRecord = false;
+			let coinsToAdd = 0;
 
-			if (existing) {
-				const existingScoreNum = Number(existing.score);
-				// Обновляем существующую запись, если новый результат лучше
-				if (scoreNum > existingScoreNum) {
-					await UserQuizResult.update(
-						{
-							score: scoreNum,
-							earned_coins: earnedCoinsNum,
-							is_passed: isPassed,
-							submitted_at: new Date(),
-						},
-						{
-							where: {
-								user_id: user.id,
-								quiz_id: quizIdNum,
-							},
-						}
-					);
-
-					userQuizResult = await UserQuizResult.findOne({
-						where: {
-							user_id: user.id,
-							quiz_id: quizIdNum,
-						},
-					});
-
-					console.log(
-						'Обновлён результат теста. Новый счёт:',
-						score,
-						'Старый:',
-						existing.score
-					);
-				} else {
-					// Новый результат не лучше - возвращаем существующий
-					return res.json({
-						success: true,
-						data: {
-							status: 'not_improved',
-							quiz_id: quizIdNum,
-							score: existing.score,
-							earned_coins: existing.earned_coins,
-							message: 'Новый результат не лучше предыдущего',
-						},
-					});
-				}
-			} else {
-				// 🔥 Создаем новую попытку
+			if (!existing) {
+				// Первое прохождение — начисляем coins_reward
+				coinsToAdd = quiz.coins_reward;
 				userQuizResult = await UserQuizResult.create({
 					user_id: user.id,
 					quiz_id: quizIdNum,
 					score: scoreNum,
-					earned_coins: earnedCoinsNum,
+					earned_coins: coinsToAdd,
 					is_passed: isPassed,
 					submitted_at: new Date(),
 				});
-				isNewRecord = true;
+			} else if (existing.is_passed) {
+				// Предыдущий результат уже был идеальным — монеты не начисляем
+				coinsToAdd = 0;
+				if (scoreNum > Number(existing.score)) {
+					await UserQuizResult.update(
+						{ score: scoreNum, is_passed: isPassed, submitted_at: new Date() },
+						{ where: { user_id: user.id, quiz_id: quizIdNum } }
+					);
+				}
+				userQuizResult = await UserQuizResult.findOne({
+					where: { user_id: user.id, quiz_id: quizIdNum },
+				});
+			} else {
+				// Предыдущий результат был неидеальным — считаем как новое прохождение
+				coinsToAdd = quiz.coins_reward;
+				await UserQuizResult.update(
+					{
+						score: scoreNum,
+						earned_coins: coinsToAdd,
+						is_passed: isPassed,
+						submitted_at: new Date(),
+					},
+					{ where: { user_id: user.id, quiz_id: quizIdNum } }
+				);
+				userQuizResult = await UserQuizResult.findOne({
+					where: { user_id: user.id, quiz_id: quizIdNum },
+				});
 			}
+
+			// Обновляем UserProgress
 			let progress = await UserProgress.findOne({
 				where: { user_id: user.id, quiz_id: quizIdNum },
 				raw: true,
@@ -209,9 +194,9 @@ class QuizzesController {
 				progress = await UserProgress.create({
 					user_id: user.id,
 					quiz_id: quizIdNum,
-					is_completed: true,
+					is_completed: isPassed,
 					score: scoreNum,
-					earned_coins: earnedCoinsNum,
+					earned_coins: coinsToAdd,
 					completed_at: new Date(),
 					status,
 				});
@@ -219,44 +204,22 @@ class QuizzesController {
 				await UserProgress.update(
 					{
 						score: scoreNum,
-						earned_coins: earnedCoinsNum,
+						earned_coins: coinsToAdd,
 						is_completed: isPassed,
 						completed_at: new Date(),
 						status,
 					},
-					{
-						where: {
-							user_id: user.id,
-							quiz_id: quizIdNum,
-						},
-					}
+					{ where: { user_id: user.id, quiz_id: quizIdNum } }
 				);
-			}
-
-			let coinsToAdd = 0;
-			const existingEarnedCoins = existing ? Number(existing.earned_coins) : 0;
-
-			if (isNewRecord) {
-				// Первое прохождение - начисляем все монеты
-				coinsToAdd = earnedCoinsNum;
-			} else if (existing && scoreNum > Number(existing.score)) {
-				// Повторное прохождение с лучшим результатом - начисляем разницу
-				coinsToAdd = earnedCoinsNum - existingEarnedCoins;
-				if (coinsToAdd < 0) coinsToAdd = 0; // На всякий случай
 			}
 
 			if (coinsToAdd > 0) {
-				// Начисляем монеты
 				await User.update(
-					{
-						coins: Number(user.coins) + Number(coinsToAdd),
-					},
-					{
-						where: { id: user.id },
-					}
+					{ coins: Number(user.coins) + coinsToAdd },
+					{ where: { id: user.id } }
 				);
 			}
-			// Добавляем транзакцию в кошелек
+
 			await WalletTransaction.create({
 				user_id: user.id,
 				type: 'credit',
@@ -268,7 +231,7 @@ class QuizzesController {
 			return res.json({
 				success: true,
 				message: 'Прогресс сохранён',
-				data: progress,
+				data: { ...progress, earned_coins: coinsToAdd },
 			});
 		} catch (error) {
 			console.error(error);

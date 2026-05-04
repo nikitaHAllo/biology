@@ -1,4 +1,3 @@
-// frontend/src/pages/MiniApp.tsx
 import React from 'react';
 import {
 	Card,
@@ -13,6 +12,7 @@ import {
 } from '@mantine/core';
 import { Sprout, Dna, Biohazard, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { GeneticsGame } from '../components/game/GeneticsGame';
 
 export const ModulesPage: React.FC = () => {
 	const navigate = useNavigate();
@@ -143,13 +143,7 @@ export const BioGardenGame = () => (
 	</GameWrapper>
 );
 
-export const GeneticCalculator = () => (
-	<GameWrapper title='🧬 Генетический калькулятор'>
-		<Text size='lg' p='md'>
-			Решайте генетические задачи интерактивно!
-		</Text>
-	</GameWrapper>
-);
+export const GeneticCalculator = () => <GeneticsGame />;
 
 export const VirusDetectiveGame = () => (
 	<GameWrapper title='🦠 Вирусный детектив'>

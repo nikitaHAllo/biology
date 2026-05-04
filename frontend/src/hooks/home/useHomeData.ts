@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTelegram } from '../useTelegram';
 import { apiService } from '../../api';
-import type { SectionWithTopics, Quiz, DownloadableTask } from '../../models';
+import type { SectionWithTopics, Quiz, DownloadableTask, TaskCollection } from '../../models';
 
 interface UseHomeDataReturn {
 	isLoading: boolean;
@@ -9,8 +9,8 @@ interface UseHomeDataReturn {
 	sections: SectionWithTopics[];
 	featuredQuiz: Quiz | null;
 	filteredTasks: DownloadableTask[];
-	collections: string[];
-	selectedTasks: number[];
+	collections: TaskCollection[];
+	selectedTasks: Set<number>;
 	taskFilter: string;
 	setTaskFilter: (filter: string) => void;
 	toggleTaskSelection: (taskId: number) => void;
@@ -24,7 +24,8 @@ export const useHomeData = (): UseHomeDataReturn => {
 	const [sections, setSections] = useState<SectionWithTopics[]>([]);
 	const [quizzes, setQuizzes] = useState<Quiz[]>([]);
 	const [tasks, setTasks] = useState<DownloadableTask[]>([]);
-	const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
+	const [collections, setCollections] = useState<TaskCollection[]>([]);
+	const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
 	const [taskFilter, setTaskFilter] = useState<string>('all');
 
 	useEffect(() => {
@@ -44,6 +45,7 @@ export const useHomeData = (): UseHomeDataReturn => {
 				setSections(materialsData.sections);
 				setQuizzes(quizzesData);
 				setTasks(tasksData.tasks);
+				setCollections(tasksData.collections);
 			} catch (err: unknown) {
 				const errorMessage =
 					err instanceof Error ? err.message : 'Не удалось загрузить данные';
@@ -57,7 +59,6 @@ export const useHomeData = (): UseHomeDataReturn => {
 		loadHomeData();
 	}, [user]);
 
-	// Викторина с отметкой featured
 	const featuredQuiz = useMemo(() => {
 		return (
 			quizzes.find((q: Quiz & { featured?: boolean }) => q.featured) ||
@@ -66,40 +67,25 @@ export const useHomeData = (): UseHomeDataReturn => {
 		);
 	}, [quizzes]);
 
-	// Фильтруем задачи по коллекции
 	const filteredTasks = useMemo(() => {
 		if (taskFilter === 'all') return tasks;
-		return tasks.filter(
-			(task: DownloadableTask & { collection?: string }) =>
-				task.collection === taskFilter
-		);
+		return tasks.filter(task => task.source === taskFilter);
 	}, [tasks, taskFilter]);
 
-	// Собираем уникальные коллекции
-	const collections = useMemo(() => {
-		const uniqueCollections = new Set(
-			tasks
-				.map(
-					(task: DownloadableTask & { collection?: string }) => task.collection
-				)
-				.filter(Boolean)
-		);
-		return Array.from(uniqueCollections) as string[];
-	}, [tasks]);
-
-	// Выбор/снятие выбора задач
 	const toggleTaskSelection = (taskId: number) => {
-		setSelectedTasks(prev =>
-			prev.includes(taskId)
-				? prev.filter(id => id !== taskId)
-				: [...prev, taskId]
-		);
+		setSelectedTasks(prev => {
+			const next = new Set(prev);
+			if (next.has(taskId)) {
+				next.delete(taskId);
+			} else {
+				next.add(taskId);
+			}
+			return next;
+		});
 	};
 
-	// Логика скачивания выбранных задач
 	const handleBulkDownload = () => {
-		console.log('Bulk download for tasks:', selectedTasks);
-		// Реальная логика скачивания
+		console.log('Bulk download for tasks:', Array.from(selectedTasks));
 	};
 
 	return {

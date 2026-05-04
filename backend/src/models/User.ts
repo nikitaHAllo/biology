@@ -27,9 +27,6 @@ interface UserAttributes {
 	longest_streak?: number;
 	last_active_date?: Date | null;
 	created_at: Date;
-	email_verified_at?: Date | null;
-	email_verification_code_hash?: string | null;
-	email_verification_expires_at?: Date | null;
 }
 
 interface UserCreationAttributes
@@ -45,9 +42,6 @@ interface UserCreationAttributes
 		| 'current_streak'
 		| 'longest_streak'
 		| 'last_active_date'
-		| 'email_verified_at'
-		| 'email_verification_code_hash'
-		| 'email_verification_expires_at'
 	> {}
 
 export class User
@@ -64,9 +58,6 @@ export class User
 	declare longest_streak?: number;
 	declare last_active_date?: Date | null;
 	declare created_at: Date;
-	declare email_verified_at?: Date | null;
-	declare email_verification_code_hash?: string | null;
-	declare email_verification_expires_at?: Date | null;
 
 	// Timestamps
 	declare readonly createdAt: Date;
@@ -157,18 +148,6 @@ User.init(
 			type: DataTypes.DATE,
 			allowNull: false,
 			defaultValue: DataTypes.NOW,
-		},
-		email_verified_at: {
-			type: DataTypes.DATE,
-			allowNull: true,
-		},
-		email_verification_code_hash: {
-			type: DataTypes.TEXT,
-			allowNull: true,
-		},
-		email_verification_expires_at: {
-			type: DataTypes.DATE,
-			allowNull: true,
 		},
 	},
 	{

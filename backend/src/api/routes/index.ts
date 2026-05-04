@@ -6,6 +6,8 @@ import { quizzesRouter } from './quizzes.routes';
 import { tasksRouter } from './tasks.routes';
 import { downloadsRouter } from './downloads.routes';
 import { biogardenRouter } from './biogarden.routes';
+import { geneticsRouter } from './genetics.routes';
+import { adminRouter } from './admin.routes';
 
 const router = Router();
 
@@ -16,5 +18,7 @@ router.use('/quizzes', quizzesRouter);
 router.use('/tasks', tasksRouter);
 router.use('/downloads', downloadsRouter);
 router.use('/biogarden', biogardenRouter);
+router.use('/genetics', geneticsRouter);
+router.use('/admin', adminRouter);
 
 export { router as apiRouter };

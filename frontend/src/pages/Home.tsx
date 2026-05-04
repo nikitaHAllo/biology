@@ -30,11 +30,11 @@ export default function Home() {
 				<TasksSection
 					tasks={filteredTasks}
 					collections={collections.map(c => ({
-						id: c,
-						title: c,
-						description: '',
+						id: c.id,
+						title: c.title,
+						description: c.description ?? '',
 					}))}
-					selected={new Set(selectedTasks)}
+					selected={selectedTasks}
 					taskFilter={taskFilter}
 					setTaskFilter={setTaskFilter}
 					toggle={toggleTaskSelection}

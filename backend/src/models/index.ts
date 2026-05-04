@@ -25,6 +25,7 @@ import {
 	TaskCollectionItem,
 } from './DownloadableTask';
 import { UserMaterialAccess } from './UserMaterialAccess';
+import { GeneticScenario, GeneticStep, GeneticOption, GeneticResult } from './Genetics';
 
 // Определение связей - ВАЖНО: правильный порядок и настройки
 User.hasMany(WalletTransaction, { foreignKey: 'user_id', as: 'transactions' });
@@ -212,6 +213,18 @@ BioGardenPlant.hasMany(UserBioGardenProgress, {
 	as: 'userProgress',
 });
 
+// ── Genetics ──────────────────────────────────────────────────────────────────
+GeneticScenario.hasMany(GeneticStep, { foreignKey: 'scenario_id', as: 'steps' });
+GeneticStep.belongsTo(GeneticScenario, { foreignKey: 'scenario_id', as: 'scenario' });
+
+GeneticStep.hasMany(GeneticOption, { foreignKey: 'step_id', as: 'options' });
+GeneticOption.belongsTo(GeneticStep, { foreignKey: 'step_id', as: 'step' });
+
+User.hasMany(GeneticResult, { foreignKey: 'user_id', as: 'geneticResults' });
+GeneticResult.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+GeneticScenario.hasMany(GeneticResult, { foreignKey: 'scenario_id', as: 'results' });
+GeneticResult.belongsTo(GeneticScenario, { foreignKey: 'scenario_id', as: 'scenario' });
+
 User.hasMany(UserBioGardenAttempt, {
 	foreignKey: 'user_id',
 	as: 'bioGardenAttempts',
@@ -260,5 +273,9 @@ export {
 	UserBioGardenProgress,
 	UserBioGardenAttempt,
 	UserTopicMastery,
+	GeneticScenario,
+	GeneticStep,
+	GeneticOption,
+	GeneticResult,
 	sequelize,
 };
