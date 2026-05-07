@@ -15,6 +15,8 @@ export interface UserStats {
 	completion_rate: number;
 	total_achievements: number;
 	total_coins: number;
+	current_streak?: number;
+	longest_streak?: number;
 }
 
 export interface UserProfileResponse {

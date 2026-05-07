@@ -79,6 +79,15 @@ export interface AdminSection {
   topics: AdminTopic[];
 }
 
+export interface AdminQuizCategory {
+  id: number;
+  title: string;
+  description: string | null;
+  color: string;
+  icon: string | null;
+  order_index: number;
+}
+
 export interface AdminQuizOption {
   id: number;
   question_id: number;
@@ -110,6 +119,7 @@ export interface AdminQuiz {
   total_points: number;
   estimated_minutes: number | null;
   is_active: boolean;
+  category_id: number;
   created_at: string;
   questions?: AdminQuizQuestion[];
 }
@@ -145,6 +155,74 @@ export interface AdminGeneticScenario {
   is_active: boolean;
   created_at: string;
   steps?: AdminGeneticStep[];
+}
+
+export interface AdminBioGardenOption {
+  id: number;
+  question_id: number;
+  option_text: string;
+  is_correct: boolean;
+  order_index: number;
+}
+
+export interface AdminBioGardenQuestion {
+  id: number;
+  plant_id: number;
+  question_text: string;
+  explanation: string;
+  points: number;
+  difficulty_level: number;
+  biology_topic: string;
+  ege_code: string;
+  timer_seconds: number;
+  is_active: boolean;
+  options?: AdminBioGardenOption[];
+}
+
+export interface AdminBioGardenPlant {
+  id: number;
+  name: string;
+  description: string;
+  scientific_name: string;
+  image_url: string | null;
+  growth_stages: number;
+  required_experience: number;
+  biology_topics: string[];
+  difficulty_level: number;
+  is_active: boolean;
+  questions_count?: number;
+  questions?: AdminBioGardenQuestion[];
+}
+
+export interface AdminVirusClue {
+  id: number;
+  case_id: number;
+  order_index: number;
+  clue_text: string;
+  clue_type: 'symptom' | 'lab' | 'observation';
+}
+
+export interface AdminVirusSuspect {
+  id: number;
+  case_id: number;
+  name: string;
+  description: string | null;
+  is_correct: boolean;
+  order_index: number;
+}
+
+export interface AdminVirusCase {
+  id: number;
+  title: string;
+  description: string | null;
+  patient_info: string | null;
+  difficulty: 'easy' | 'medium' | 'hard';
+  coins_reward: number;
+  order_index: number;
+  is_active: boolean;
+  created_at: string;
+  clues?: AdminVirusClue[];
+  suspects?: AdminVirusSuspect[];
 }
 
 export const api = {
@@ -203,6 +281,19 @@ export const api = {
   removeTaskFromCollection: (collectionId: number, taskId: number) =>
     req('DELETE', `/collections/${collectionId}/tasks/${taskId}`),
 
+  // Quiz categories
+  getQuizCategories: () =>
+    req<{ categories: AdminQuizCategory[] }>('GET', '/quiz-categories'),
+
+  createQuizCategory: (body: { title: string; description?: string; color?: string; icon?: string; order_index?: number }) =>
+    req<{ category: AdminQuizCategory }>('POST', '/quiz-categories', body),
+
+  updateQuizCategory: (id: number, body: Partial<{ title: string; description: string | null; color: string; icon: string | null; order_index: number }>) =>
+    req<{ category: AdminQuizCategory }>('PUT', `/quiz-categories/${id}`, body),
+
+  deleteQuizCategory: (id: number) =>
+    req('DELETE', `/quiz-categories/${id}`),
+
   // Quizzes
   getQuizzes: () =>
     req<{ quizzes: AdminQuiz[] }>('GET', '/quizzes'),
@@ -210,10 +301,10 @@ export const api = {
   getQuiz: (id: number) =>
     req<{ quiz: AdminQuiz }>('GET', `/quizzes/${id}`),
 
-  createQuiz: (body: { title: string; description?: string; coins_reward?: number; difficulty?: string; topic_tag?: string; estimated_minutes?: number; is_active?: boolean }) =>
+  createQuiz: (body: { title: string; description?: string; coins_reward?: number; difficulty?: string; topic_tag?: string; estimated_minutes?: number; is_active?: boolean; category_id?: number }) =>
     req<{ quiz: AdminQuiz }>('POST', '/quizzes', body),
 
-  updateQuiz: (id: number, body: Partial<{ title: string; description: string | null; coins_reward: number; difficulty: string; topic_tag: string | null; estimated_minutes: number | null; is_active: boolean }>) =>
+  updateQuiz: (id: number, body: Partial<{ title: string; description: string | null; coins_reward: number; difficulty: string; topic_tag: string | null; estimated_minutes: number | null; is_active: boolean; category_id: number }>) =>
     req<{ quiz: AdminQuiz }>('PUT', `/quizzes/${id}`, body),
 
   deleteQuiz: (id: number) =>
@@ -272,4 +363,72 @@ export const api = {
 
   deleteGeneticOption: (id: number) =>
     req('DELETE', `/genetics/options/${id}`),
+
+  // Virus
+  getVirusCases: () =>
+    req<{ cases: AdminVirusCase[] }>('GET', '/virus/cases'),
+
+  getVirusCase: (id: number) =>
+    req<{ case: AdminVirusCase }>('GET', `/virus/cases/${id}`),
+
+  createVirusCase: (body: { title: string; description?: string; patient_info?: string; difficulty?: string; coins_reward?: number; order_index?: number; is_active?: boolean }) =>
+    req<{ case: AdminVirusCase }>('POST', '/virus/cases', body),
+
+  updateVirusCase: (id: number, body: Partial<{ title: string; description: string | null; patient_info: string | null; difficulty: string; coins_reward: number; order_index: number; is_active: boolean }>) =>
+    req<{ case: AdminVirusCase }>('PUT', `/virus/cases/${id}`, body),
+
+  deleteVirusCase: (id: number) =>
+    req('DELETE', `/virus/cases/${id}`),
+
+  createVirusClue: (caseId: number, body: { clue_text: string; clue_type?: string; order_index?: number }) =>
+    req<{ clue: AdminVirusClue }>('POST', `/virus/cases/${caseId}/clues`, body),
+
+  updateVirusClue: (id: number, body: Partial<{ clue_text: string; clue_type: string; order_index: number }>) =>
+    req<{ clue: AdminVirusClue }>('PUT', `/virus/clues/${id}`, body),
+
+  deleteVirusClue: (id: number) =>
+    req('DELETE', `/virus/clues/${id}`),
+
+  createVirusSuspect: (caseId: number, body: { name: string; description?: string; is_correct?: boolean; order_index?: number }) =>
+    req<{ suspect: AdminVirusSuspect }>('POST', `/virus/cases/${caseId}/suspects`, body),
+
+  updateVirusSuspect: (id: number, body: Partial<{ name: string; description: string | null; is_correct: boolean; order_index: number }>) =>
+    req<{ suspect: AdminVirusSuspect }>('PUT', `/virus/suspects/${id}`, body),
+
+  deleteVirusSuspect: (id: number) =>
+    req('DELETE', `/virus/suspects/${id}`),
+
+  // BioGarden
+  getBioGardenPlants: () =>
+    req<{ plants: AdminBioGardenPlant[] }>('GET', '/biogarden/plants'),
+
+  getBioGardenPlant: (id: number) =>
+    req<{ plant: AdminBioGardenPlant }>('GET', `/biogarden/plants/${id}`),
+
+  createBioGardenPlant: (body: { name: string; description: string; scientific_name: string; image_url?: string; growth_stages?: number; required_experience?: number; biology_topics?: string[]; difficulty_level?: number; is_active?: boolean }) =>
+    req<{ plant: AdminBioGardenPlant }>('POST', '/biogarden/plants', body),
+
+  updateBioGardenPlant: (id: number, body: Partial<{ name: string; description: string; scientific_name: string; image_url: string | null; growth_stages: number; required_experience: number; biology_topics: string[]; difficulty_level: number; is_active: boolean }>) =>
+    req<{ plant: AdminBioGardenPlant }>('PUT', `/biogarden/plants/${id}`, body),
+
+  deleteBioGardenPlant: (id: number) =>
+    req('DELETE', `/biogarden/plants/${id}`),
+
+  createBioGardenQuestion: (plantId: number, body: { question_text: string; explanation: string; points?: number; difficulty_level?: number; biology_topic?: string; ege_code?: string; timer_seconds?: number; is_active?: boolean }) =>
+    req<{ question: AdminBioGardenQuestion }>('POST', `/biogarden/plants/${plantId}/questions`, body),
+
+  updateBioGardenQuestion: (id: number, body: Partial<{ question_text: string; explanation: string; points: number; difficulty_level: number; biology_topic: string; ege_code: string; timer_seconds: number; is_active: boolean }>) =>
+    req<{ question: AdminBioGardenQuestion }>('PUT', `/biogarden/questions/${id}`, body),
+
+  deleteBioGardenQuestion: (id: number) =>
+    req('DELETE', `/biogarden/questions/${id}`),
+
+  createBioGardenOption: (questionId: number, body: { option_text: string; is_correct?: boolean; order_index?: number }) =>
+    req<{ option: AdminBioGardenOption }>('POST', `/biogarden/questions/${questionId}/options`, body),
+
+  updateBioGardenOption: (id: number, body: Partial<{ option_text: string; is_correct: boolean; order_index: number }>) =>
+    req<{ option: AdminBioGardenOption }>('PUT', `/biogarden/options/${id}`, body),
+
+  deleteBioGardenOption: (id: number) =>
+    req('DELETE', `/biogarden/options/${id}`),
 };

@@ -14,34 +14,19 @@ import {
 import { Op } from 'sequelize';
 
 class BioGardenController {
+	private async resolveUser(req: Request): Promise<User | null> {
+		if (req.user) return req.user;
+		const telegramId = (req.query.telegramId ?? req.body?.telegramId) as string | undefined;
+		if (!telegramId) return null;
+		return User.findOne({ where: { telegram_id: Number(telegramId) } });
+	}
+
 	// GET /biogarden/plants
 	async getPlants(req: Request, res: Response) {
 		try {
-			console.log('Received telegramId:', req.query.telegramId); // Логируем входящий параметр
-
-			const { telegramId } = req.query;
-
-			if (!telegramId) {
-				return res.status(400).json({
-					success: false,
-					message: 'telegramId обязателен',
-				});
-			}
-
-			console.log('Searching for user with telegram_id:', Number(telegramId));
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
-
-			console.log('Found user:', user);
-
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			// Получаем все активные растения
@@ -131,18 +116,9 @@ class BioGardenController {
 	async startPlant(req: Request, res: Response) {
 		try {
 			const { plantId } = req.params;
-			const { telegramId } = req.body;
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
-
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			const plant = await BioGardenPlant.findByPk(plantId);
@@ -238,18 +214,9 @@ class BioGardenController {
 	async getCurrentQuestion(req: Request, res: Response) {
 		try {
 			const { plantId } = req.params;
-			const { telegramId } = req.query;
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
-
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			const progress = await UserBioGardenProgress.findOne({
@@ -371,18 +338,10 @@ class BioGardenController {
 	async submitAnswer(req: Request, res: Response) {
 		try {
 			const { plantId } = req.params;
-			const { telegramId, questionId, answerId } = req.body;
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
-
+			const { questionId, answerId } = req.body;
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			// Проверяем прогресс
@@ -738,18 +697,9 @@ class BioGardenController {
 	async waterPlant(req: Request, res: Response) {
 		try {
 			const { plantId } = req.params;
-			const { telegramId } = req.body;
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
-
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			const progress = await UserBioGardenProgress.findOne({
@@ -825,18 +775,9 @@ class BioGardenController {
 	// GET /biogarden/progress
 	async getProgress(req: Request, res: Response) {
 		try {
-			const { telegramId } = req.query;
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
-
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			const progress = await UserBioGardenProgress.findAll({
@@ -934,18 +875,9 @@ class BioGardenController {
 	async getPlantProgress(req: Request, res: Response) {
 		try {
 			const { plantId } = req.params;
-			const { telegramId } = req.query;
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
-
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			const progress = await UserBioGardenProgress.findOne({
@@ -1041,18 +973,9 @@ class BioGardenController {
 	// GET /biogarden/stats
 	async getStats(req: Request, res: Response) {
 		try {
-			const { telegramId } = req.query;
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
-
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			// Общая статистика по игре
@@ -1123,17 +1046,9 @@ class BioGardenController {
 	async getReviveQuestion(req: Request, res: Response) {
 		try {
 			const { plantId } = req.params;
-			const { telegramId } = req.query;
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			const progress = await UserBioGardenProgress.findOne({
@@ -1230,17 +1145,10 @@ class BioGardenController {
 	async revive(req: Request, res: Response) {
 		try {
 			const { plantId } = req.params;
-			const { telegramId, mode } = req.body;
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
+			const { mode } = req.body;
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			const progress = await UserBioGardenProgress.findOne({
@@ -1328,17 +1236,10 @@ class BioGardenController {
 	async reviveAnswer(req: Request, res: Response) {
 		try {
 			const { plantId } = req.params;
-			const { telegramId, questionId, answerId } = req.body;
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
+			const { questionId, answerId } = req.body;
+			const user = await this.resolveUser(req);
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			const progress = await UserBioGardenProgress.findOne({

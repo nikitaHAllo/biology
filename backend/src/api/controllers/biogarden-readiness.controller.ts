@@ -4,24 +4,15 @@ import { User, UserTopicMastery, BioGardenPlant } from '../../models';
 export class BioGardenReadinessController {
 	async getEgeReadiness(req: Request, res: Response) {
 		try {
-			const { telegramId } = req.query;
-
-			if (!telegramId) {
-				return res.status(400).json({
-					success: false,
-					message: 'telegramId обязателен',
-				});
-			}
-
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-			});
-
+			let user = req.user ?? null;
 			if (!user) {
-				return res.status(404).json({
-					success: false,
-					message: 'Пользователь не найден',
-				});
+				const telegramId = req.query.telegramId as string | undefined;
+				if (telegramId) {
+					user = await User.findOne({ where: { telegram_id: Number(telegramId) } });
+				}
+			}
+			if (!user) {
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
 			const mastery = await UserTopicMastery.findAll({

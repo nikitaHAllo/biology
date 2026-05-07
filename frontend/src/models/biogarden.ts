@@ -21,6 +21,24 @@ export interface BioGardenPlant {
 	revive_sleep_until?: string | null;
 }
 
+export interface BioGardenQuestionOption {
+	id: number;
+	option_text: string;
+	order_index: number;
+}
+
+export interface BioGardenQuestion {
+	id: number;
+	question_text: string;
+	biology_topic: string;
+	ege_code: string;
+	points: number;
+	timer_seconds: number;
+	options: BioGardenQuestionOption[];
+	current_stage?: number;
+	total_stages?: number;
+}
+
 export interface BioGardenProgress {
 	plant_id: number;
 	plant_name: string;
@@ -152,4 +170,52 @@ export interface PlantProgressResponse {
 export interface StatsResponse {
 	overview: BioGardenOverview;
 	top_plants: TopPlant[];
+}
+
+export interface CurrentQuestionResponse {
+	question: BioGardenQuestion;
+	progress: {
+		current_stage: number;
+		health_points: number;
+		experience_points: number;
+	};
+}
+
+export interface AnswerProgressUpdate {
+	current_stage: number;
+	experience_points: number;
+	health_points: number;
+	max_health_points: number;
+	is_completed: boolean;
+	is_unlocked: boolean;
+}
+
+export interface SubmitAnswerResponse {
+	is_correct: boolean;
+	correct_answer_id: number | null;
+	explanation: string | null;
+	earned_experience: number;
+	earned_coins: number;
+	animation: 'water' | 'dry' | 'revive' | 'stage_up' | null;
+	combo_count: number;
+	progress: AnswerProgressUpdate;
+}
+
+export interface ReviveQuestionResponse {
+	question: BioGardenQuestion;
+	is_revive: boolean;
+}
+
+export interface ReviveAnswerResponse {
+	is_correct: boolean;
+	revived: boolean;
+	health_points?: number;
+	explanation: string | null;
+	correct_answer_id?: number | null;
+	revive_sleep_until?: string;
+	progress?: {
+		health_points: number;
+		is_wilted: boolean;
+		is_unlocked: boolean;
+	};
 }

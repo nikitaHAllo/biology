@@ -60,4 +60,40 @@ router.post('/genetics/steps/:stepId/options', adminAuth, (req, res) => adminCon
 router.put('/genetics/options/:id', adminAuth, (req, res) => adminController.updateGeneticOption(req, res));
 router.delete('/genetics/options/:id', adminAuth, (req, res) => adminController.deleteGeneticOption(req, res));
 
+// Virus
+router.get('/virus/cases', adminAuth, (req, res) => adminController.getVirusCases(req, res));
+router.get('/virus/cases/:id', adminAuth, (req, res) => adminController.getVirusCase(req, res));
+router.post('/virus/cases', adminAuth, (req, res) => adminController.createVirusCase(req, res));
+router.put('/virus/cases/:id', adminAuth, (req, res) => adminController.updateVirusCase(req, res));
+router.delete('/virus/cases/:id', adminAuth, (req, res) => adminController.deleteVirusCase(req, res));
+
+router.post('/virus/cases/:caseId/clues', adminAuth, (req, res) => adminController.createVirusClue(req, res));
+router.put('/virus/clues/:id', adminAuth, (req, res) => adminController.updateVirusClue(req, res));
+router.delete('/virus/clues/:id', adminAuth, (req, res) => adminController.deleteVirusClue(req, res));
+
+router.post('/virus/cases/:caseId/suspects', adminAuth, (req, res) => adminController.createVirusSuspect(req, res));
+router.put('/virus/suspects/:id', adminAuth, (req, res) => adminController.updateVirusSuspect(req, res));
+router.delete('/virus/suspects/:id', adminAuth, (req, res) => adminController.deleteVirusSuspect(req, res));
+
+// Quiz categories
+router.get('/quiz-categories', adminAuth, (req, res) => adminController.getQuizCategories(req, res));
+router.post('/quiz-categories', adminAuth, (req, res) => adminController.createQuizCategory(req, res));
+router.put('/quiz-categories/:id', adminAuth, (req, res) => adminController.updateQuizCategory(req, res));
+router.delete('/quiz-categories/:id', adminAuth, (req, res) => adminController.deleteQuizCategory(req, res));
+
+// BioGarden
+router.get('/biogarden/plants', adminAuth, (req, res) => adminController.getBioGardenPlants(req, res));
+router.get('/biogarden/plants/:id', adminAuth, (req, res) => adminController.getBioGardenPlant(req, res));
+router.post('/biogarden/plants', adminAuth, (req, res) => adminController.createBioGardenPlant(req, res));
+router.put('/biogarden/plants/:id', adminAuth, (req, res) => adminController.updateBioGardenPlant(req, res));
+router.delete('/biogarden/plants/:id', adminAuth, (req, res) => adminController.deleteBioGardenPlant(req, res));
+
+router.post('/biogarden/plants/:plantId/questions', adminAuth, (req, res) => adminController.createBioGardenQuestion(req, res));
+router.put('/biogarden/questions/:id', adminAuth, (req, res) => adminController.updateBioGardenQuestion(req, res));
+router.delete('/biogarden/questions/:id', adminAuth, (req, res) => adminController.deleteBioGardenQuestion(req, res));
+
+router.post('/biogarden/questions/:questionId/options', adminAuth, (req, res) => adminController.createBioGardenOption(req, res));
+router.put('/biogarden/options/:id', adminAuth, (req, res) => adminController.updateBioGardenOption(req, res));
+router.delete('/biogarden/options/:id', adminAuth, (req, res) => adminController.deleteBioGardenOption(req, res));
+
 export { router as adminRouter };

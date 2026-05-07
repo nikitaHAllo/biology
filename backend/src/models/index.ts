@@ -13,6 +13,7 @@ import { AssignmentSubmission } from './AssignmentSubmission';
 import { AssignmentReview } from './AssignmentReview';
 import { MaterialSection, MaterialTopic, MaterialFile } from './Material';
 import { Quiz, QuizQuestion, QuizOption } from './Quiz';
+import { QuizCategory } from './QuizCategory';
 import { BioGardenPlant } from './BioGardenPlant';
 import { BioGardenQuestion } from './BioGardenQuestion';
 import { BioGardenAnswerOption } from './BioGardenAnswerOption';
@@ -26,6 +27,7 @@ import {
 } from './DownloadableTask';
 import { UserMaterialAccess } from './UserMaterialAccess';
 import { GeneticScenario, GeneticStep, GeneticOption, GeneticResult } from './Genetics';
+import { VirusCase, VirusClue, VirusSuspect, VirusResult } from './Virus';
 
 // Определение связей - ВАЖНО: правильный порядок и настройки
 User.hasMany(WalletTransaction, { foreignKey: 'user_id', as: 'transactions' });
@@ -142,6 +144,9 @@ UserMaterialAccess.belongsTo(MaterialTopic, {
 Quiz.hasMany(QuizQuestion, { foreignKey: 'quiz_id', as: 'questions' });
 QuizQuestion.belongsTo(Quiz, { foreignKey: 'quiz_id', as: 'quiz' });
 
+QuizCategory.hasMany(Quiz, { foreignKey: 'category_id', as: 'quizzes' });
+Quiz.belongsTo(QuizCategory, { foreignKey: 'category_id', as: 'category' });
+
 QuizQuestion.hasMany(QuizOption, {
 	foreignKey: 'question_id',
 	as: 'options',
@@ -225,6 +230,18 @@ GeneticResult.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 GeneticScenario.hasMany(GeneticResult, { foreignKey: 'scenario_id', as: 'results' });
 GeneticResult.belongsTo(GeneticScenario, { foreignKey: 'scenario_id', as: 'scenario' });
 
+// ── Virus ──────────────────────────────────────────────────────────────────────
+VirusCase.hasMany(VirusClue, { foreignKey: 'case_id', as: 'clues' });
+VirusClue.belongsTo(VirusCase, { foreignKey: 'case_id', as: 'case' });
+
+VirusCase.hasMany(VirusSuspect, { foreignKey: 'case_id', as: 'suspects' });
+VirusSuspect.belongsTo(VirusCase, { foreignKey: 'case_id', as: 'case' });
+
+User.hasMany(VirusResult, { foreignKey: 'user_id', as: 'virusResults' });
+VirusResult.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+VirusCase.hasMany(VirusResult, { foreignKey: 'case_id', as: 'results' });
+VirusResult.belongsTo(VirusCase, { foreignKey: 'case_id', as: 'case' });
+
 User.hasMany(UserBioGardenAttempt, {
 	foreignKey: 'user_id',
 	as: 'bioGardenAttempts',
@@ -263,6 +280,7 @@ export {
 	Quiz,
 	QuizQuestion,
 	QuizOption,
+	QuizCategory,
 	DownloadableTask,
 	TaskCollection,
 	TaskCollectionItem,
@@ -277,5 +295,9 @@ export {
 	GeneticStep,
 	GeneticOption,
 	GeneticResult,
+	VirusCase,
+	VirusClue,
+	VirusSuspect,
+	VirusResult,
 	sequelize,
 };

@@ -12,6 +12,7 @@ export interface QuizAttributes {
 	coins_reward: number;
 	difficulty: 'easy' | 'medium' | 'hard';
 	topic_tag?: string | null;
+	category_id: number;
 	created_at?: Date;
 	updated_at?: Date;
 }
@@ -19,7 +20,7 @@ export interface QuizAttributes {
 interface QuizCreationAttributes
 	extends Optional<
 		QuizAttributes,
-		'id' | 'description' | 'total_questions' | 'total_points' | 'estimated_minutes' | 'is_active' | 'coins_reward' | 'difficulty' | 'topic_tag' | 'created_at' | 'updated_at'
+		'id' | 'description' | 'total_questions' | 'total_points' | 'estimated_minutes' | 'is_active' | 'coins_reward' | 'difficulty' | 'topic_tag' | 'category_id' | 'created_at' | 'updated_at'
 	> {}
 
 export class Quiz
@@ -36,6 +37,7 @@ export class Quiz
 	public coins_reward!: number;
 	public difficulty!: 'easy' | 'medium' | 'hard';
 	public topic_tag?: string | null;
+	public category_id!: number;
 	public readonly created_at?: Date;
 	public readonly updated_at?: Date;
 }
@@ -87,6 +89,12 @@ Quiz.init(
 		topic_tag: {
 			type: DataTypes.STRING,
 			allowNull: true,
+		},
+		category_id: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 1,
+			references: { model: 'quiz_categories', key: 'id' },
 		},
 	},
 	{

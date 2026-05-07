@@ -1,6 +1,9 @@
 // pages/QuizPage.tsx
 import { useState } from 'react';
-import { Loader, Alert, Card, Group, Button, Stack } from '@mantine/core';
+import {
+	Loader, Alert, Card, Group, Button, Stack, Text, Badge, ThemeIcon,
+	ScrollArea,
+} from '@mantine/core';
 import {
 	QuizExplanation,
 	QuizFooter,
@@ -11,17 +14,21 @@ import {
 	QuizLayout,
 	QuizNavigation,
 } from '../components';
+import { IconCheck, IconEye } from '@tabler/icons-react';
 import { useQuiz, useTelegram, useTimer } from '../hooks';
 
 const QuizPage = () => {
 	const { user } = useTelegram();
 
-	// Деструктуризация нужных свойств из хука
 	const {
 		isLoading,
 		error,
 		newQuizzes,
 		completedQuizzes,
+		activeList,
+		categories,
+		selectedCategoryId,
+		setSelectedCategoryId,
 		currentQuestion,
 		currentQuestionIndex,
 		totalQuestions,
@@ -39,6 +46,7 @@ const QuizPage = () => {
 		switchQuiz,
 		checkAnswer,
 		next,
+		prevQuestion,
 		restart,
 		nextQuiz,
 		prevQuiz,
@@ -48,7 +56,7 @@ const QuizPage = () => {
 
 	const timer = useTimer({
 		initialTime: currentQuestion?.timer_seconds ?? null,
-		active: answerState === 'idle' && !isFinished,
+		active: answerState === 'idle' && !isFinished && activeList !== 'completed',
 		onTimeout: handleTimeout,
 	});
 
@@ -57,21 +65,18 @@ const QuizPage = () => {
 	if (isLoading) return <Loader />;
 	if (error) return <Alert color='red'>{error}</Alert>;
 
-	// Обработчик переключения вкладок
 	const handleSwitchTab = async (tab: 'new' | 'completed') => {
 		setActiveTab(tab);
 		await switchList(tab);
 	};
 
-	// Проверка пустых списков
 	const currentList = activeTab === 'new' ? newQuizzes : completedQuizzes;
 	const isListEmpty = !currentList || currentList.length === 0;
+	const isViewOnly = activeList === 'completed';
 
-	// Результат теста
-	if (isFinished) {
+	if (isFinished && !isViewOnly) {
 		const correct = Object.values(history).filter(x => x.isCorrect).length;
-		const percentage = Math.round((correct / totalQuestions) * 100);
-		const isSuccess = percentage >= 70;
+		const isPassed = correct === totalQuestions;
 
 		return (
 			<QuizLayout>
@@ -81,7 +86,7 @@ const QuizPage = () => {
 					coins={coins}
 					restart={restart}
 					onNextQuiz={nextQuiz}
-					hasNextQuiz={hasNextQuiz && isSuccess}
+					hasNextQuiz={hasNextQuiz && isPassed}
 					score={correct}
 				/>
 			</QuizLayout>
@@ -90,7 +95,35 @@ const QuizPage = () => {
 
 	return (
 		<QuizLayout>
-			{/* Вкладки переключения */}
+			{/* Category filter */}
+			{categories.length > 0 && (
+				<Card withBorder padding='sm' mb='sm'>
+					<ScrollArea>
+						<Group gap='xs' wrap='nowrap'>
+							<Button
+								size='xs'
+								variant={selectedCategoryId === null ? 'filled' : 'light'}
+								onClick={() => setSelectedCategoryId(null)}
+							>
+								Все темы
+							</Button>
+							{categories.map(cat => (
+								<Button
+									key={cat.id}
+									size='xs'
+									variant={selectedCategoryId === cat.id ? 'filled' : 'light'}
+									color={cat.color}
+									onClick={() => setSelectedCategoryId(cat.id)}
+								>
+									{cat.title}
+								</Button>
+							))}
+						</Group>
+					</ScrollArea>
+				</Card>
+			)}
+
+			{/* New / Completed tabs */}
 			<Card withBorder padding='md' mb='md'>
 				<Group>
 					<Button
@@ -108,7 +141,6 @@ const QuizPage = () => {
 				</Group>
 			</Card>
 
-			{/* Сообщение если список пуст */}
 			{isListEmpty ? (
 				<Card withBorder padding='lg'>
 					<Alert color='blue' variant='outline'>
@@ -119,7 +151,6 @@ const QuizPage = () => {
 				</Card>
 			) : (
 				<>
-					{/* Навигация по тестам */}
 					{totalQuizzes > 1 && (
 						<Card withBorder padding='md' mb='md'>
 							<QuizNavigation
@@ -133,55 +164,93 @@ const QuizPage = () => {
 						</Card>
 					)}
 
-					{/* Вопросы текущего теста */}
+					{isViewOnly && (
+						<Card withBorder padding='sm' mb='md' bg='green.0'>
+							<Group gap='xs'>
+								<ThemeIcon color='green' variant='light' size='sm'>
+									<IconEye size={14} />
+								</ThemeIcon>
+								<Text size='sm' c='green.8'>
+									Режим просмотра — тест пройден
+								</Text>
+								<Badge color='green' variant='light' size='sm' leftSection={<IconCheck size={10} />}>
+									Завершён
+								</Badge>
+							</Group>
+						</Card>
+					)}
+
 					{currentQuestion && (
 						<Stack gap='md'>
-							{/* Заголовок вопроса */}
 							<Card withBorder padding='lg'>
 								<QuizHeader
 									index={currentQuestionIndex}
 									total={totalQuestions}
 									coins={coins}
 									question={currentQuestion.question_text}
-									time={timer.time}
+									time={isViewOnly ? null : timer.time}
 								/>
 							</Card>
 
-							{/* Варианты ответов */}
 							<Card withBorder padding='lg'>
 								<QuizOptions
 									question={currentQuestion}
-									selected={selectedOptions}
-									disabled={answerState !== 'idle'}
+									selected={isViewOnly ? currentQuestion.correct_answer_ids : selectedOptions}
+									disabled={isViewOnly || answerState !== 'idle'}
 									toggle={toggleOption}
 								/>
 							</Card>
 
-							{/* Объяснение */}
-							{answerState !== 'idle' && currentQuestion.explanation && (
+							{!isViewOnly && answerState !== 'idle' && currentQuestion.explanation && (
 								<QuizExplanation
 									state={answerState}
 									text={currentQuestion.explanation}
 								/>
 							)}
 
-							{/* Кнопки управления */}
-							<Card withBorder padding='lg'>
-								<QuizFooter
-									canCheck={
-										selectedOptions.length > 0 && answerState === 'idle'
-									}
-									canNext={answerState !== 'idle'}
-									onCheck={() => {
-										checkAnswer();
-										timer.stop();
-									}}
-									onNext={next}
-									isLast={currentQuestionIndex === totalQuestions - 1}
-								/>
-							</Card>
+							{isViewOnly && currentQuestion.explanation && (
+								<Card withBorder padding='md' bg='blue.0'>
+									<Text size='sm' c='blue.8'>{currentQuestion.explanation}</Text>
+								</Card>
+							)}
 
-							{/* Прогресс */}
+							{isViewOnly ? (
+								<Card withBorder padding='lg'>
+									<Group justify='space-between'>
+										<Button
+											variant='light'
+											disabled={currentQuestionIndex === 0}
+											onClick={prevQuestion}
+										>
+											← Назад
+										</Button>
+										<Text size='sm' c='dimmed'>
+											{currentQuestionIndex + 1} / {totalQuestions}
+										</Text>
+										<Button
+											variant='light'
+											disabled={currentQuestionIndex >= totalQuestions - 1}
+											onClick={next}
+										>
+											Вперёд →
+										</Button>
+									</Group>
+								</Card>
+							) : (
+								<Card withBorder padding='lg'>
+									<QuizFooter
+										canCheck={selectedOptions.length > 0 && answerState === 'idle'}
+										canNext={answerState !== 'idle'}
+										onCheck={() => {
+											checkAnswer();
+											timer.stop();
+										}}
+										onNext={next}
+										isLast={currentQuestionIndex === totalQuestions - 1}
+									/>
+								</Card>
+							)}
+
 							<Card withBorder padding='lg'>
 								<QuizProgress value={progress} />
 							</Card>

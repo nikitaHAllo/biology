@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, AdminQuiz, AdminQuizQuestion, AdminQuizOption } from '../api';
+import { api, AdminQuiz, AdminQuizCategory, AdminQuizQuestion, AdminQuizOption } from '../api';
 
 const DIFFICULTIES = [
   { value: 'easy', label: 'Лёгкий' },
@@ -26,7 +26,7 @@ function difficultyColor(d: string) {
 }
 
 // ── Quiz form ─────────────────────────────────────────────────────────────────
-function emptyQuizForm() {
+function emptyQuizForm(defaultCategoryId = 0) {
   return {
     title: '',
     description: '',
@@ -35,6 +35,7 @@ function emptyQuizForm() {
     topic_tag: '',
     estimated_minutes: '',
     is_active: true,
+    category_id: defaultCategoryId,
   };
 }
 
@@ -62,8 +63,16 @@ function emptyOptionForm() {
 // =============================================================================
 export default function QuizzesPage() {
   const [quizzes, setQuizzes] = useState<AdminQuiz[]>([]);
+  const [categories, setCategories] = useState<AdminQuizCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // category management
+  const [showCatCreate, setShowCatCreate] = useState(false);
+  const [catForm, setCatForm] = useState({ title: '', description: '', color: 'blue', icon: '', order_index: 0 });
+  const [catSaving, setCatSaving] = useState(false);
+  const [editingCatId, setEditingCatId] = useState<number | null>(null);
+  const [editCatForm, setEditCatForm] = useState({ title: '', description: '', color: 'blue', icon: '', order_index: 0 });
 
   // which quiz is expanded (shows questions)
   const [openQuizId, setOpenQuizId] = useState<number | null>(null);
@@ -107,12 +116,71 @@ export default function QuizzesPage() {
   async function load() {
     setLoading(true);
     try {
-      const data = await api.getQuizzes();
-      setQuizzes(data.quizzes);
+      const [quizData, catData] = await Promise.all([api.getQuizzes(), api.getQuizCategories()]);
+      setQuizzes(quizData.quizzes);
+      setCategories(catData.categories);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Ошибка загрузки');
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ── Category CRUD ────────────────────────────────────────────────────────────
+  async function handleCreateCategory(e: React.FormEvent) {
+    e.preventDefault();
+    setCatSaving(true);
+    try {
+      await api.createQuizCategory({
+        title: catForm.title,
+        description: catForm.description || undefined,
+        color: catForm.color || 'blue',
+        icon: catForm.icon || undefined,
+        order_index: Number(catForm.order_index),
+      });
+      setCatForm({ title: '', description: '', color: 'blue', icon: '', order_index: 0 });
+      setShowCatCreate(false);
+      await load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setCatSaving(false);
+    }
+  }
+
+  function startEditCat(cat: AdminQuizCategory) {
+    setEditingCatId(cat.id);
+    setEditCatForm({ title: cat.title, description: cat.description ?? '', color: cat.color, icon: cat.icon ?? '', order_index: cat.order_index });
+  }
+
+  async function handleUpdateCategory(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingCatId) return;
+    setCatSaving(true);
+    try {
+      await api.updateQuizCategory(editingCatId, {
+        title: editCatForm.title,
+        description: editCatForm.description || null,
+        color: editCatForm.color,
+        icon: editCatForm.icon || null,
+        order_index: Number(editCatForm.order_index),
+      });
+      setEditingCatId(null);
+      await load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Ошибка');
+    } finally {
+      setCatSaving(false);
+    }
+  }
+
+  async function handleDeleteCategory(id: number) {
+    if (!confirm('Удалить категорию?')) return;
+    try {
+      await api.deleteQuizCategory(id);
+      await load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Ошибка');
     }
   }
 
@@ -153,6 +221,7 @@ export default function QuizzesPage() {
         topic_tag: createForm.topic_tag || undefined,
         estimated_minutes: createForm.estimated_minutes ? Number(createForm.estimated_minutes) : undefined,
         is_active: createForm.is_active,
+        category_id: createForm.category_id || undefined,
       });
       setCreateForm(emptyQuizForm());
       setShowCreate(false);
@@ -175,6 +244,7 @@ export default function QuizzesPage() {
       topic_tag: quiz.topic_tag ?? '',
       estimated_minutes: quiz.estimated_minutes?.toString() ?? '',
       is_active: quiz.is_active,
+      category_id: quiz.category_id ?? 0,
     });
   }
 
@@ -191,6 +261,7 @@ export default function QuizzesPage() {
         topic_tag: editQuizForm.topic_tag || null,
         estimated_minutes: editQuizForm.estimated_minutes ? Number(editQuizForm.estimated_minutes) : null,
         is_active: editQuizForm.is_active,
+        category_id: editQuizForm.category_id || undefined,
       });
       setEditingQuizId(null);
       await load();
@@ -350,6 +421,50 @@ export default function QuizzesPage() {
 
   return (
     <div>
+      {/* ── Categories section ── */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 16 }}>Категории ({categories.length})</h2>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowCatCreate(v => !v)}>
+            {showCatCreate ? 'Отмена' : '+ Категория'}
+          </button>
+        </div>
+
+        {showCatCreate && (
+          <form onSubmit={handleCreateCategory} style={{ marginBottom: 12 }}>
+            <CategoryFormFields form={catForm} setForm={setCatForm} />
+            <button type="submit" className="btn btn-primary btn-sm" disabled={catSaving} style={{ marginTop: 8 }}>
+              {catSaving ? '...' : 'Создать'}
+            </button>
+          </form>
+        )}
+
+        {categories.length === 0 ? (
+          <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>Категорий нет. Создайте хотя бы одну перед добавлением тестов.</p>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {categories.map(cat => (
+              <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f5f5f5', borderRadius: 6, padding: '5px 10px', fontSize: 13 }}>
+                {editingCatId === cat.id ? (
+                  <form onSubmit={handleUpdateCategory} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <CategoryFormFields form={editCatForm} setForm={setEditCatForm} inline />
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={catSaving}>{catSaving ? '...' : 'Ок'}</button>
+                    <button type="button" className="btn btn-sm" style={{ background: '#eee', color: '#333' }} onClick={() => setEditingCatId(null)}>✕</button>
+                  </form>
+                ) : (
+                  <>
+                    <span style={{ fontWeight: 600 }}>{cat.title}</span>
+                    {cat.color && <span className="badge" style={{ background: cat.color + '22', color: cat.color, fontSize: 11 }}>{cat.color}</span>}
+                    <button className="btn btn-sm" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px 4px' }} onClick={() => startEditCat(cat)}>✏️</button>
+                    <button className="btn btn-sm" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '1px 4px' }} onClick={() => handleDeleteCategory(cat.id)}>🗑</button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <h1 style={{ margin: 0 }}>Тесты ({quizzes.length})</h1>
         <button className="btn btn-primary" onClick={() => { setShowCreate(v => !v); setEditingQuizId(null); }}>
@@ -362,7 +477,7 @@ export default function QuizzesPage() {
         <div className="card" style={{ marginBottom: 20 }}>
           <h2>Новый тест</h2>
           <form onSubmit={handleCreateQuiz}>
-            <QuizFormFields form={createForm} setForm={setCreateForm} />
+            <QuizFormFields form={createForm} setForm={setCreateForm} categories={categories} />
             <div style={{ marginTop: 12 }}>
               <button type="submit" className="btn btn-primary" disabled={createSaving}>
                 {createSaving ? 'Сохранение...' : 'Создать'}
@@ -426,7 +541,7 @@ export default function QuizzesPage() {
             {isEditing && (
               <div className="section-body">
                 <form onSubmit={handleUpdateQuiz}>
-                  <QuizFormFields form={editQuizForm} setForm={setEditQuizForm} />
+                  <QuizFormFields form={editQuizForm} setForm={setEditQuizForm} categories={categories} />
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                     <button type="submit" className="btn btn-primary" disabled={editQuizSaving}>
                       {editQuizSaving ? 'Сохранение...' : 'Сохранить'}
@@ -643,7 +758,8 @@ export default function QuizzesPage() {
 
 // ── Reusable sub-forms ────────────────────────────────────────────────────────
 
-function QuizFormFields({ form, setForm }: { form: QuizForm; setForm: React.Dispatch<React.SetStateAction<QuizForm>> }) {
+// categories must be in scope — passed as prop
+function QuizFormFields({ form, setForm, categories }: { form: QuizForm; setForm: React.Dispatch<React.SetStateAction<QuizForm>>; categories: AdminQuizCategory[] }) {
   return (
     <div className="form-row">
       <label style={{ flex: '2 1 200px' }}>
@@ -654,6 +770,17 @@ function QuizFormFields({ form, setForm }: { form: QuizForm; setForm: React.Disp
           required
           placeholder="Цитология. Базовый уровень"
         />
+      </label>
+      <label style={{ flex: '1 1 160px' }}>
+        Категория *
+        <select
+          value={form.category_id}
+          onChange={e => setForm(f => ({ ...f, category_id: Number(e.target.value) }))}
+          required
+        >
+          <option value={0} disabled>— выберите —</option>
+          {categories.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+        </select>
       </label>
       <label style={{ flex: '1 1 120px' }}>
         Тема/тег
@@ -705,6 +832,59 @@ function QuizFormFields({ form, setForm }: { form: QuizForm; setForm: React.Disp
         />
         Активен
       </label>
+    </div>
+  );
+}
+
+const COLORS = ['blue', 'green', 'red', 'orange', 'purple', 'teal', 'pink', 'yellow'];
+
+function CategoryFormFields({
+  form,
+  setForm,
+  inline = false,
+}: {
+  form: { title: string; description: string; color: string; icon: string; order_index: number };
+  setForm: React.Dispatch<React.SetStateAction<typeof form>>;
+  inline?: boolean;
+}) {
+  const st: React.CSSProperties = inline
+    ? { display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }
+    : { display: 'flex', gap: 10, flexWrap: 'wrap' };
+
+  return (
+    <div style={st}>
+      <input
+        value={form.title}
+        onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+        placeholder="Название *"
+        required
+        style={{ flex: '1 1 140px', border: '1px solid #ddd', borderRadius: 4, padding: '5px 8px', fontSize: 13 }}
+      />
+      <select
+        value={form.color}
+        onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
+        style={{ border: '1px solid #ddd', borderRadius: 4, padding: '5px 8px', fontSize: 13 }}
+      >
+        {COLORS.map(c => <option key={c} value={c}>{c}</option>)}
+      </select>
+      {!inline && (
+        <>
+          <input
+            value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            placeholder="Описание"
+            style={{ flex: '2 1 200px', border: '1px solid #ddd', borderRadius: 4, padding: '5px 8px', fontSize: 13 }}
+          />
+          <input
+            type="number"
+            min={0}
+            value={form.order_index}
+            onChange={e => setForm(f => ({ ...f, order_index: Number(e.target.value) }))}
+            placeholder="Порядок"
+            style={{ width: 80, border: '1px solid #ddd', borderRadius: 4, padding: '5px 8px', fontSize: 13 }}
+          />
+        </>
+      )}
     </div>
   );
 }

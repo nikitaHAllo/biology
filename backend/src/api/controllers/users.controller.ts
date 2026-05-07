@@ -56,9 +56,12 @@ interface UserMaterialAccessWithTopic {
 interface UserWithAssociations {
 	id: number;
 	telegram_id: number | null;
+	email?: string | null;
 	username: string | null;
 	coins: number;
 	created_at: Date;
+	current_streak?: number;
+	longest_streak?: number;
 	progress?: UserProgressWithLesson[];
 	achievements?: UserAchievementWithAchievement[];
 	materialAccesses?: UserMaterialAccessWithTopic[];
@@ -281,12 +284,11 @@ async function buildAchievementsJson(userId: number) {
 
 async function buildStatsJson(user: User) {
 	const userData = user.get({ plain: true }) as UserWithAssociations;
-	const userProgress = userData.progress || [];
 	const userAchievements = userData.achievements || [];
-	const totalQuizzes = await Quiz.count();
-	const completedLessons = userProgress.filter(
-		p => p.status === 'completed'
-	).length;
+	const totalQuizzes = await Quiz.count({ where: { is_active: true } });
+	const completedQuizzes = await UserProgress.count({
+		where: { user_id: userData.id, status: 'completed' },
+	});
 
 	return {
 		success: true,
@@ -299,13 +301,15 @@ async function buildStatsJson(user: User) {
 			},
 			stats: {
 				total_lessons: totalQuizzes,
-				completed_lessons: completedLessons,
+				completed_lessons: completedQuizzes,
 				completion_rate:
 					totalQuizzes > 0
-						? Math.round((completedLessons / totalQuizzes) * 100)
+						? Math.round((completedQuizzes / totalQuizzes) * 100)
 						: 0,
 				total_achievements: userAchievements.length,
 				total_coins: userData.coins,
+				current_streak: userData.current_streak ?? 0,
+				longest_streak: userData.longest_streak ?? 0,
 			},
 		},
 	};
@@ -354,6 +358,7 @@ function formatProfilePayload(userData: UserWithAssociations) {
 			profile: {
 				id: userData.id,
 				telegram_id: userData.telegram_id,
+				email: userData.email ?? null,
 				username: userData.username,
 				coins: userData.coins,
 				created_at: userData.created_at,
@@ -414,7 +419,7 @@ export class UsersController {
 	async getProfileMe(req: Request, res: Response) {
 		try {
 			const user = await User.findByPk(req.user!.id, {
-				attributes: ['id', 'telegram_id', 'username', 'coins', 'created_at'],
+				attributes: ['id', 'telegram_id', 'email', 'username', 'coins', 'created_at'],
 				include: USER_PROFILE_INCLUDE,
 			});
 
@@ -691,7 +696,7 @@ export class UsersController {
 
 			const user = await User.findOne({
 				where: { telegram_id: Number(telegramId) },
-				attributes: ['id', 'telegram_id', 'username', 'coins', 'created_at'],
+				attributes: ['id', 'telegram_id', 'username', 'coins', 'created_at', 'current_streak', 'longest_streak'],
 				include: [
 					{
 						model: UserProgress,
@@ -726,7 +731,7 @@ export class UsersController {
 	async getStatsMe(req: Request, res: Response) {
 		try {
 			const user = await User.findByPk(req.user!.id, {
-				attributes: ['id', 'telegram_id', 'username', 'coins', 'created_at'],
+				attributes: ['id', 'telegram_id', 'username', 'coins', 'created_at', 'current_streak', 'longest_streak'],
 				include: [
 					{
 						model: UserProgress,

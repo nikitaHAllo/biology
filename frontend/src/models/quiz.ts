@@ -11,6 +11,13 @@ export interface QuizQuestion {
 	timer_seconds?: number | null;
 }
 
+export interface QuizCategory {
+	id: number;
+	title: string;
+	color: string;
+	icon?: string | null;
+}
+
 export interface QuizListItem {
 	id: number;
 	title: string;
@@ -38,7 +45,14 @@ export interface Quiz {
 	estimated_minutes?: number | null;
 	is_completed?: boolean;
 	completed_at?: string | null;
+	coins_reward?: number;
+	category_id?: number;
+	category?: QuizCategory | null;
 	questions: QuizQuestion[];
+}
+
+export interface QuizCategoriesResponse {
+	categories: QuizCategory[];
 }
 
 export interface QuizAttempt {
@@ -110,7 +124,7 @@ export interface SubmitQuizResponse {
 }
 
 export interface CompleteQuizPayload {
-	telegramId: number;
+	telegramId?: number;
 	score: number;
 	earned_coins: number;
 }

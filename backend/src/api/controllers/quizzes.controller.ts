@@ -3,6 +3,7 @@ import {
 	Quiz,
 	QuizQuestion,
 	QuizOption,
+	QuizCategory,
 	WalletTransaction,
 	UserProgress,
 	User,
@@ -10,89 +11,62 @@ import {
 } from '../../models';
 
 class QuizzesController {
+	private async resolveUser(req: Request): Promise<User | null> {
+		if (req.user) return req.user;
+		const telegramId = (req.query.telegramId ?? req.body?.telegramId) as string | undefined;
+		if (!telegramId) return null;
+		return User.findOne({ where: { telegram_id: Number(telegramId) } });
+	}
+
 	async list(req: Request, res: Response) {
 		try {
-			const { telegramId } = req.query;
-
-			// 1. Получаем все активные тесты
-			const quizzes = await Quiz.findAll({
+			const quizzesRaw = await Quiz.findAll({
 				where: { is_active: true },
 				order: [['created_at', 'ASC']],
-				raw: true,
+				include: [{ model: QuizCategory, as: 'category', attributes: ['id', 'title', 'color', 'icon'] }],
 			});
 
+			const quizzes = quizzesRaw.map(q => q.get({ plain: true }));
+
 			let formatted;
+			const user = await this.resolveUser(req);
 
-			// 2. Если передан telegramId, проверяем пройденные тесты
-			if (telegramId) {
-				try {
-					// Ищем пользователя
-					const user = await User.findOne({
-						where: { telegram_id: Number(telegramId) },
-						raw: true,
-					});
+			if (user) {
+				const userQuizResults = await UserQuizResult.findAll({
+					where: { user_id: user.id },
+					raw: true,
+				});
 
-					if (user) {
-						// Получаем результаты пользователя
-						const userQuizResults = await UserQuizResult.findAll({
-							where: { user_id: user.id },
-							raw: true,
-						});
+				const resultsMap = new Map();
+				userQuizResults.forEach(result => {
+					resultsMap.set(result.quiz_id, result);
+				});
 
-						// Создаем мапу для быстрого поиска
-						const resultsMap = new Map();
-						userQuizResults.forEach(result => {
-							resultsMap.set(result.quiz_id, result);
-						});
-
-						// Создаем форматированный массив с правильными статусами
-						formatted = quizzes.map(quiz => {
-							const result = resultsMap.get(quiz.id);
-							return {
-								...quiz,
-								is_completed: !!result?.is_passed,
-								score: result?.score || null,
-								earned_coins: result?.earned_coins || null,
-								completed_at: result?.submitted_at || null,
-							};
-						});
-					} else {
-						// Пользователь не найден - все тесты непройденные
-						formatted = quizzes.map(quiz => ({
-							...quiz,
-							is_completed: false,
-							score: null,
-							earned_coins: null,
-							completed_at: null,
-						}));
-					}
-				} catch (userError) {
-					console.warn('Error checking user progress:', userError);
-					// В случае ошибки - все тесты непройденные
-					formatted = quizzes.map(quiz => ({
+				formatted = quizzes.map(quiz => {
+					const result = resultsMap.get(quiz.id);
+					return {
 						...quiz,
-						is_completed: false,
-						score: null,
-						earned_coins: null,
-						completed_at: null,
-					}));
-				}
+						is_completed: !!result?.is_passed,
+						score: result?.score ?? null,
+						earned_coins: result?.earned_coins ?? null,
+						completed_at: result?.submitted_at ?? null,
+						category: (quiz as any).category ?? null,
+					};
+				});
 			} else {
-				// telegramId не передан - все тесты непройденные
 				formatted = quizzes.map(quiz => ({
 					...quiz,
 					is_completed: false,
 					score: null,
 					earned_coins: null,
 					completed_at: null,
+					category: (quiz as any).category ?? null,
 				}));
 			}
 
 			res.json({
 				success: true,
-				data: {
-					quizzes: formatted,
-				},
+				data: { quizzes: formatted },
 			});
 		} catch (error) {
 			console.error('Error fetching quizzes:', error);
@@ -102,11 +76,11 @@ class QuizzesController {
 			});
 		}
 	}
-	// POST /quizzes/:quizId/complete
+
 	async complete(req: Request, res: Response) {
 		try {
 			const { quizId } = req.params;
-			const { telegramId, score } = req.body;
+			const { score } = req.body;
 
 			const quizIdNum = Number(quizId);
 			if (!Number.isInteger(quizIdNum) || quizIdNum <= 0) {
@@ -123,17 +97,11 @@ class QuizzesController {
 				return res.status(404).json({ success: false, message: 'Викторина не найдена' });
 			}
 
-			const user = await User.findOne({
-				where: { telegram_id: telegramId },
-				raw: true,
-			});
+			const user = await this.resolveUser(req);
+			if (!user) {
+				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
+			}
 
-			if (!user)
-				return res
-					.status(404)
-					.json({ success: false, message: 'Пользователь не найден' });
-
-			// Пройден полностью = все вопросы правильно
 			const isPassed = scoreNum === quiz.total_questions && quiz.total_questions > 0;
 			const status = isPassed ? 'completed' : 'pending';
 
@@ -142,13 +110,11 @@ class QuizzesController {
 				raw: true,
 			});
 
-			let userQuizResult;
 			let coinsToAdd = 0;
 
 			if (!existing) {
-				// Первое прохождение — начисляем coins_reward
-				coinsToAdd = quiz.coins_reward;
-				userQuizResult = await UserQuizResult.create({
+				if (isPassed) coinsToAdd = quiz.coins_reward;
+				await UserQuizResult.create({
 					user_id: user.id,
 					quiz_id: quizIdNum,
 					score: scoreNum,
@@ -156,42 +122,22 @@ class QuizzesController {
 					is_passed: isPassed,
 					submitted_at: new Date(),
 				});
-			} else if (existing.is_passed) {
-				// Предыдущий результат уже был идеальным — монеты не начисляем
-				coinsToAdd = 0;
-				if (scoreNum > Number(existing.score)) {
-					await UserQuizResult.update(
-						{ score: scoreNum, is_passed: isPassed, submitted_at: new Date() },
-						{ where: { user_id: user.id, quiz_id: quizIdNum } }
-					);
-				}
-				userQuizResult = await UserQuizResult.findOne({
-					where: { user_id: user.id, quiz_id: quizIdNum },
-				});
-			} else {
-				// Предыдущий результат был неидеальным — считаем как новое прохождение
+			} else if (!existing.is_passed && isPassed) {
 				coinsToAdd = quiz.coins_reward;
 				await UserQuizResult.update(
-					{
-						score: scoreNum,
-						earned_coins: coinsToAdd,
-						is_passed: isPassed,
-						submitted_at: new Date(),
-					},
+					{ score: scoreNum, is_passed: isPassed, earned_coins: coinsToAdd, submitted_at: new Date() },
 					{ where: { user_id: user.id, quiz_id: quizIdNum } }
 				);
-				userQuizResult = await UserQuizResult.findOne({
-					where: { user_id: user.id, quiz_id: quizIdNum },
-				});
+			} else if (scoreNum > Number(existing.score)) {
+				await UserQuizResult.update(
+					{ score: scoreNum, is_passed: isPassed, submitted_at: new Date() },
+					{ where: { user_id: user.id, quiz_id: quizIdNum } }
+				);
 			}
 
-			// Обновляем UserProgress
-			let progress = await UserProgress.findOne({
+			const [progress, created] = await UserProgress.findOrCreate({
 				where: { user_id: user.id, quiz_id: quizIdNum },
-				raw: true,
-			});
-			if (!progress) {
-				progress = await UserProgress.create({
+				defaults: {
 					user_id: user.id,
 					quiz_id: quizIdNum,
 					is_completed: isPassed,
@@ -199,16 +145,12 @@ class QuizzesController {
 					earned_coins: coinsToAdd,
 					completed_at: new Date(),
 					status,
-				});
-			} else if (scoreNum > Number(progress.score)) {
+				},
+			});
+
+			if (!created && scoreNum > Number(progress.score)) {
 				await UserProgress.update(
-					{
-						score: scoreNum,
-						earned_coins: coinsToAdd,
-						is_completed: isPassed,
-						completed_at: new Date(),
-						status,
-					},
+					{ score: scoreNum, is_completed: isPassed, status, completed_at: new Date() },
 					{ where: { user_id: user.id, quiz_id: quizIdNum } }
 				);
 			}
@@ -218,26 +160,28 @@ class QuizzesController {
 					{ coins: Number(user.coins) + coinsToAdd },
 					{ where: { id: user.id } }
 				);
+				await WalletTransaction.create({
+					user_id: user.id,
+					type: 'credit',
+					amount: coinsToAdd,
+					source: 'quiz',
+					meta: { quiz_id: quizIdNum },
+				});
 			}
-
-			await WalletTransaction.create({
-				user_id: user.id,
-				type: 'credit',
-				amount: coinsToAdd,
-				source: 'quiz',
-				meta: { quiz_id: quizIdNum },
-			});
 
 			return res.json({
 				success: true,
 				message: 'Прогресс сохранён',
-				data: { ...progress, earned_coins: coinsToAdd },
+				data: {
+					quiz_id: quizIdNum,
+					score: scoreNum,
+					earned_coins: coinsToAdd,
+					status,
+				},
 			});
 		} catch (error) {
 			console.error(error);
-			res
-				.status(500)
-				.json({ success: false, message: 'Ошибка сохранения прогресса' });
+			return res.status(500).json({ success: false, message: 'Ошибка сохранения прогресса' });
 		}
 	}
 
@@ -326,9 +270,7 @@ class QuizzesController {
 
 			res.json({
 				success: true,
-				data: {
-					quiz: formatted,
-				},
+				data: { quiz: formatted },
 			});
 		} catch (error) {
 			console.error('Error fetching quiz details:', error);
@@ -336,6 +278,18 @@ class QuizzesController {
 				success: false,
 				message: 'Не удалось загрузить викторину',
 			});
+		}
+	}
+	async getCategories(_req: Request, res: Response) {
+		try {
+			const categories = await QuizCategory.findAll({
+				order: [['order_index', 'ASC'], ['title', 'ASC']],
+				raw: true,
+			});
+			res.json({ success: true, data: { categories } });
+		} catch (error) {
+			console.error('Error fetching quiz categories:', error);
+			res.status(500).json({ success: false, message: 'Ошибка загрузки категорий' });
 		}
 	}
 }

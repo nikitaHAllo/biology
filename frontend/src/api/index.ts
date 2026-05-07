@@ -19,19 +19,24 @@ import type {
 	PurchaseTopicResult,
 } from '../models';
 import type { CompleteQuizResponse } from '../models/task';
-import type { CompleteQuizPayload } from '../models/quiz';
+import type { CompleteQuizPayload, QuizCategoriesResponse } from '../models/quiz';
 import type { TopicAccessCheck } from '../models/material';
 import type {
+	CurrentQuestionResponse,
 	EgeReadinessResponse,
 	PlantProgressResponse,
 	PlantsListResponse,
 	ProgressResponse,
+	ReviveAnswerResponse,
+	ReviveQuestionResponse,
 	ReviveResponse,
 	StartPlantResponse,
 	StatsResponse,
+	SubmitAnswerResponse,
 	WaterPlantResponse,
 } from '../models/biogarden';
 import type { GeneticScenario } from '../models/genetics';
+import type { VirusCase } from '../models/virus';
 import { clearAuthToken, getAuthToken, getRefreshToken, setAuthToken, setRefreshToken } from '../lib/authStorage';
 
 const API_BASE_URL =
@@ -234,6 +239,11 @@ class ApiService {
 		return response.data.data.quizzes;
 	}
 
+	async getQuizCategories(): Promise<QuizCategoriesResponse> {
+		const response = await this.api.get<ApiResponse<QuizCategoriesResponse>>('/quizzes/categories');
+		return response.data.data;
+	}
+
 	async getQuizDetails(quizId: number): Promise<Quiz> {
 		const response = await this.api.get<ApiResponse<QuizDetailsResponse>>(
 			`/quizzes/${quizId}`,
@@ -255,11 +265,10 @@ class ApiService {
 	}
 
 	async getPlantsList(
-		telegramId: number | string,
+		telegramId?: number | string,
 	): Promise<PlantsListResponse> {
-		const response = await this.api.get('/biogarden/plants', {
-			params: { telegramId },
-		});
+		const params = telegramId && !isNaN(Number(telegramId)) ? { telegramId } : {};
+		const response = await this.api.get('/biogarden/plants', { params });
 		return response.data.data;
 	}
 
@@ -329,6 +338,42 @@ class ApiService {
 		return response.data.data;
 	}
 
+	async getCurrentQuestion(plantId: number, telegramId?: number): Promise<CurrentQuestionResponse> {
+		const params = telegramId && !isNaN(telegramId) ? { telegramId } : {};
+		const response = await this.api.get(`/biogarden/plants/${plantId}/current-question`, { params });
+		return response.data.data;
+	}
+
+	async submitBiogardenAnswer(
+		plantId: number,
+		questionId: number,
+		answerId: number,
+		telegramId?: number,
+	): Promise<SubmitAnswerResponse> {
+		const body: Record<string, unknown> = { questionId, answerId };
+		if (telegramId && !isNaN(telegramId)) body.telegramId = telegramId;
+		const response = await this.api.post(`/biogarden/plants/${plantId}/answer`, body);
+		return response.data.data;
+	}
+
+	async getBiogardenReviveQuestion(plantId: number, telegramId?: number): Promise<ReviveQuestionResponse> {
+		const params = telegramId && !isNaN(telegramId) ? { telegramId } : {};
+		const response = await this.api.get(`/biogarden/plants/${plantId}/revive-question`, { params });
+		return response.data.data;
+	}
+
+	async submitReviveAnswer(
+		plantId: number,
+		questionId: number,
+		answerId: number,
+		telegramId?: number,
+	): Promise<ReviveAnswerResponse> {
+		const body: Record<string, unknown> = { questionId, answerId };
+		if (telegramId && !isNaN(telegramId)) body.telegramId = telegramId;
+		const response = await this.api.post(`/biogarden/plants/${plantId}/revive-answer`, body);
+		return response.data.data;
+	}
+
 	// ── Genetics ────────────────────────────────────────────────────────────
 	async getGeneticScenarios(): Promise<{ scenarios: GeneticScenario[] }> {
 		const response = await this.api.get('/genetics/scenarios');
@@ -342,6 +387,27 @@ class ApiService {
 
 	async completeGeneticScenario(id: number, score: number): Promise<{ coins_earned: number; score: number }> {
 		const response = await this.api.post(`/genetics/scenarios/${id}/complete`, { score });
+		return response.data.data;
+	}
+
+	// ── Virus ────────────────────────────────────────────────────────────────
+	async getVirusCases(): Promise<{ cases: VirusCase[] }> {
+		const response = await this.api.get('/virus/cases');
+		return response.data.data;
+	}
+
+	async getVirusCase(id: number): Promise<{ case: VirusCase }> {
+		const response = await this.api.get(`/virus/cases/${id}`);
+		return response.data.data;
+	}
+
+	async guessVirusSuspect(caseId: number, suspectId: number): Promise<{ is_correct: boolean; description: string | null }> {
+		const response = await this.api.post(`/virus/cases/${caseId}/guess`, { suspect_id: suspectId });
+		return response.data.data;
+	}
+
+	async completeVirusCase(caseId: number, cluesUsed: number): Promise<{ coins_earned: number; score: number }> {
+		const response = await this.api.post(`/virus/cases/${caseId}/complete`, { clues_used: cluesUsed });
 		return response.data.data;
 	}
 }

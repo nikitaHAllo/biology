@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(Get-ChildItem -Path \"c:\\\\projects\\\\biology\\\\frontend\\\\src\\\\pages\" -Filter \"*.*\")",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem -Path \"c:\\\\projects\\\\biology\\\\frontend\\\\src\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(powershell -Command \"\\(Get-Content 'c:\\\\projects\\\\biology\\\\frontend\\\\src\\\\pages\\\\Login.tsx' | Measure-Object -Line\\).Lines\")",
+      "Bash(powershell -Command \"\\(Get-Content 'c:\\\\projects\\\\biology\\\\frontend\\\\src\\\\pages\\\\Register.tsx' | Measure-Object -Line\\).Lines\")",
+      "Bash(powershell -Command \"\\(Get-Content 'c:\\\\projects\\\\biology\\\\frontend\\\\src\\\\App.tsx' | Measure-Object -Line\\).Lines\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "PowerShell(cd c:\\\\projects\\\\biology\\\\backend; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"users.controller\" })",
+      "Bash(npx tsc *)"
     ]
   }
 }

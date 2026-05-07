@@ -1,6 +1,6 @@
 // components/QuizResult.tsx
 import { Badge, Button, Card, Stack, Text, Title, Group } from '@mantine/core';
-import { IconCoin, IconRefresh, IconArrowRight } from '@tabler/icons-react';
+import { IconCoin, IconRefresh, IconArrowRight, IconTrophy } from '@tabler/icons-react';
 
 export const QuizResult = ({
 	correct,
@@ -20,13 +20,13 @@ export const QuizResult = ({
 	score?: number;
 }) => {
 	const percentage = Math.round((correct / total) * 100);
-	const isSuccess = percentage >= 70; // 70% для успешного прохождения
+	const isSuccess = correct === total; // все верно = успешно пройден
 
 	return (
 		<Card withBorder padding='xl' radius='lg'>
 			<Stack align='center' gap='md'>
 				<Title order={2} c={isSuccess ? 'teal' : 'orange'}>
-					{isSuccess ? '🎉 Тест пройден!' : '📝 Тест завершён'}
+					{isSuccess ? '🎉 Тест пройден!' : '📝 Не все ответы верны'}
 				</Title>
 
 				<Group justify='center' gap='xl'>
@@ -55,22 +55,22 @@ export const QuizResult = ({
 					</Badge>
 				)}
 
-				<Badge leftSection={<IconCoin size={16} />} color='teal' size='lg'>
-					+{coins} монет
-				</Badge>
+				{isSuccess && coins > 0 && (
+					<Badge leftSection={<IconCoin size={16} />} color='teal' size='lg'>
+						+{coins} монет
+					</Badge>
+				)}
 
 				<Group justify='center' mt='md'>
-					{/* Пройти ещё раз */}
 					<Button
 						leftSection={<IconRefresh size={16} />}
 						onClick={restart}
 						variant='light'
-						color={!isSuccess ? 'orange' : 'blue'}
+						color={isSuccess ? 'blue' : 'orange'}
 					>
-						{!isSuccess ? 'Перепройти' : 'Повторить'}
+						{isSuccess ? 'Повторить' : 'Перепройти'}
 					</Button>
 
-					{/* Перейти к следующему тесту */}
 					{hasNextQuiz && onNextQuiz && isSuccess && (
 						<Button
 							rightSection={<IconArrowRight size={16} />}
@@ -80,21 +80,19 @@ export const QuizResult = ({
 							Следующий тест
 						</Button>
 					)}
-
-					{/* Если тест не пройден успешно */}
-					{!isSuccess && hasNextQuiz && (
-						<Text size='sm' c='dimmed' ta='center'>
-							Для перехода к следующему тесту наберите 70% или более
-						</Text>
-					)}
 				</Group>
 
-				{/* Сообщение о результате */}
 				<Text size='sm' c={isSuccess ? 'teal' : 'orange'} ta='center'>
 					{isSuccess
-						? 'Отличный результат! Вы можете перейти к следующему тесту.'
-						: 'Попробуйте ещё раз, чтобы улучшить результат!'}
+						? 'Отличный результат! Тест засчитан как пройденный.'
+						: 'Нужно ответить верно на все вопросы. Попробуйте ещё раз — монеты будут начислены после полного прохождения.'}
 				</Text>
+
+				{isSuccess && (
+					<Badge color='teal' variant='light' leftSection={<IconTrophy size={12} />}>
+						Тест добавлен в «Пройденные»
+					</Badge>
+				)}
 			</Stack>
 		</Card>
 	);

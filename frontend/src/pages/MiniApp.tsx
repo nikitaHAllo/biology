@@ -13,6 +13,7 @@ import {
 import { Sprout, Dna, Biohazard, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { GeneticsGame } from '../components/game/GeneticsGame';
+import { VirusGame } from '../components/game/VirusGame';
 
 export const ModulesPage: React.FC = () => {
 	const navigate = useNavigate();
@@ -145,12 +146,6 @@ export const BioGardenGame = () => (
 
 export const GeneticCalculator = () => <GeneticsGame />;
 
-export const VirusDetectiveGame = () => (
-	<GameWrapper title='🦠 Вирусный детектив'>
-		<Text size='lg' p='md'>
-			Анализируйте симптомы и определяйте патоген!
-		</Text>
-	</GameWrapper>
-);
+export const VirusDetectiveGame = () => <VirusGame />;
 
 export default ModulesPage;
