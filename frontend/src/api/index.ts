@@ -160,10 +160,11 @@ class ApiService {
 		return response.data.data.stats;
 	}
 
-	async getUserBalance(telegramId: number): Promise<number> {
-		const response = await this.api.get<ApiResponse<BalanceResponse>>(
-			this.userPath(telegramId, '/users/me/balance', '/users/:id/balance'),
-		);
+	async getUserBalance(telegramId?: number): Promise<number> {
+		const path = getAuthToken()
+			? '/users/me/balance'
+			: `/users/${telegramId}/balance`;
+		const response = await this.api.get<ApiResponse<BalanceResponse>>(path);
 		return response.data.data.coins;
 	}
 
@@ -219,12 +220,13 @@ class ApiService {
 	}
 
 	async purchaseTopic(
-		telegramId: number,
+		telegramId: number | undefined,
 		topicId: number,
 	): Promise<PurchaseTopicResult> {
+		const body = telegramId ? { telegramId } : {};
 		const response = await this.api.post<ApiResponse<PurchaseTopicResult>>(
 			`/materials/topics/${topicId}/purchase`,
-			{ telegramId },
+			body,
 		);
 		return response.data.data;
 	}

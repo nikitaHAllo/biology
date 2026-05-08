@@ -240,8 +240,8 @@ class AdminController {
 
 	async createCollection(req: Request, res: Response) {
 		try {
-			const { title, source, description } = req.body as {
-				title?: string; source?: 'ege' | 'fipi' | 'other'; description?: string;
+			const { title, source, description, download_url } = req.body as {
+				title?: string; source?: 'ege' | 'fipi' | 'other'; description?: string; download_url?: string;
 			};
 			if (!title || !source) {
 				return res.status(400).json({ success: false, message: 'title и source обязательны' });
@@ -250,6 +250,7 @@ class AdminController {
 				title,
 				source,
 				description: description ?? null,
+				download_url: download_url ?? null,
 			});
 			return res.status(201).json({ success: true, data: { collection } });
 		} catch (e) {

@@ -18,6 +18,7 @@ export interface TaskCollection {
 	title: string;
 	source: TaskSource;
 	description?: string;
+	download_url?: string | null;
 	tasks: DownloadableTask[];
 	total_tasks: number;
 	total_size?: number;

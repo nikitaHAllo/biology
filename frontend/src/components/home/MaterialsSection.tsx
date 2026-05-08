@@ -12,6 +12,7 @@ import { TopicCard } from './TopicCard';
 import type { SectionWithTopics } from '../../models';
 import { useTelegram } from '../../hooks/useTelegram';
 import { apiService } from '../../api';
+import { getAuthToken } from '../../lib/authStorage';
 import { useState, useEffect, useCallback } from 'react';
 import { showNotification } from '@mantine/notifications';
 
@@ -26,11 +27,11 @@ export function MaterialsSection({ sections }: MaterialsSectionProps) {
 
 	// Загружаем баланс пользователя
 	const loadUserBalance = useCallback(async () => {
-		if (!user?.id) return;
+		if (!user?.id && !getAuthToken()) return;
 
 		try {
 			setIsLoadingBalance(true);
-			const balance = await apiService.getUserBalance(user.id);
+			const balance = await apiService.getUserBalance(user?.id);
 			setUserBalance(balance);
 		} catch (error) {
 			console.error('Error loading balance:', error);

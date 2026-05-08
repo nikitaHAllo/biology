@@ -94,13 +94,14 @@ export interface TaskCollectionAttributes {
 	title: string;
 	source: 'ege' | 'fipi' | 'other';
 	description?: string | null;
+	download_url?: string | null;
 	total_size?: number | null;
 	created_at?: Date;
 	updated_at?: Date;
 }
 
 interface TaskCollectionCreationAttributes
-	extends Optional<TaskCollectionAttributes, 'id' | 'description' | 'total_size' | 'created_at' | 'updated_at'> {}
+	extends Optional<TaskCollectionAttributes, 'id' | 'description' | 'download_url' | 'total_size' | 'created_at' | 'updated_at'> {}
 
 export class TaskCollection
 	extends Model<TaskCollectionAttributes, TaskCollectionCreationAttributes>
@@ -110,6 +111,7 @@ export class TaskCollection
 	public title!: string;
 	public source!: 'ege' | 'fipi' | 'other';
 	public description?: string | null;
+	public download_url?: string | null;
 	public total_size?: number | null;
 	public readonly created_at?: Date;
 	public readonly updated_at?: Date;
@@ -131,6 +133,10 @@ TaskCollection.init(
 			allowNull: false,
 		},
 		description: {
+			type: DataTypes.TEXT,
+			allowNull: true,
+		},
+		download_url: {
 			type: DataTypes.TEXT,
 			allowNull: true,
 		},

@@ -12,7 +12,7 @@ function emptyTaskForm() {
 }
 
 function emptyColForm() {
-  return { title: '', source: 'ege' as Source, description: '', saving: false };
+  return { title: '', source: 'ege' as Source, description: '', download_url: '', saving: false };
 }
 
 export default function TasksPage() {
@@ -89,6 +89,7 @@ export default function TasksPage() {
         title: cf.title,
         source: cf.source,
         description: cf.description || undefined,
+        download_url: cf.download_url || undefined,
       });
       setCf(emptyColForm());
       await load();
@@ -269,6 +270,10 @@ export default function TasksPage() {
                   Описание
                   <input value={cf.description} onChange={e => setCf(f => ({ ...f, description: e.target.value }))} placeholder="Необязательно" />
                 </label>
+                <label>
+                  Ссылка для скачивания
+                  <input value={cf.download_url} onChange={e => setCf(f => ({ ...f, download_url: e.target.value }))} placeholder="https://disk.yandex.ru/d/..." style={{ minWidth: 260 }} />
+                </label>
                 <button type="submit" className="btn btn-primary" disabled={cf.saving} style={{ alignSelf: 'flex-end' }}>
                   {cf.saving ? '...' : '+ Коллекция'}
                 </button>
@@ -292,7 +297,10 @@ export default function TasksPage() {
                     {' '}
                     <strong>{col.title}</strong>
                     <span className="badge" style={{ marginLeft: 8 }}>{col.source.toUpperCase()}</span>
-                    <span className="badge" style={{ marginLeft: 6 }}>{colTasks.length} заданий</span>
+                    {col.download_url
+                      ? <span className="badge" style={{ marginLeft: 6, background: '#e6f4ea', color: '#2d7d32' }}>📎 ссылка есть</span>
+                      : <span className="badge" style={{ marginLeft: 6, background: '#fce8e6', color: '#c62828' }}>нет ссылки</span>
+                    }
                     {col.description && <span className="text-muted" style={{ marginLeft: 8 }}>{col.description}</span>}
                   </span>
                   <button className="btn btn-danger btn-sm" onClick={e => { e.stopPropagation(); handleDeleteCollection(col.id); }}>
@@ -302,50 +310,58 @@ export default function TasksPage() {
 
                 {isOpen && (
                   <div className="section-body">
-                    {/* Tasks in this collection */}
-                    {colTasks.length === 0 && <p className="text-muted">Заданий в коллекции нет</p>}
-                    {colTasks.map(task => (
-                      <div className="file-row" key={task.id}>
-                        <span>
-                          <strong>{task.title}</strong>
-                          <span className="badge" style={{ marginLeft: 6 }}>{task.source.toUpperCase()}</span>
-                          {task.year && <span className="text-muted" style={{ marginLeft: 6 }}>{task.year}</span>}
-                        </span>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleRemoveFromCollection(col.id, task.id)}
-                        >
-                          Убрать
-                        </button>
+                    {col.download_url ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span className="text-muted" style={{ fontSize: 13 }}>Ссылка:</span>
+                        <a href={col.download_url} target="_blank" rel="noreferrer" style={{ color: '#4a90d9', fontSize: 13, wordBreak: 'break-all' }}>
+                          {col.download_url}
+                        </a>
                       </div>
-                    ))}
-
-                    {/* Add task to collection */}
-                    {availableTasks.length > 0 && (
-                      <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
-                        <select
-                          value={addToCol[col.id] ?? ''}
-                          onChange={e => setAddToCol(s => ({ ...s, [col.id]: e.target.value }))}
-                          style={{ flex: 1, border: '1px solid #ddd', borderRadius: 4, padding: '6px 8px', fontSize: 13 }}
-                        >
-                          <option value="">— выбрать задание —</option>
-                          {availableTasks.map(t => (
-                            <option key={t.id} value={t.id}>
-                              [{t.source.toUpperCase()}] {t.title}{t.year ? ` (${t.year})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          className="btn btn-primary"
-                          onClick={() => handleAddToCollection(col.id)}
-                          disabled={!addToCol[col.id]}
-                        >
-                          + Добавить
-                        </button>
-                      </div>
-                    )}
-                    {availableTasks.length === 0 && tasks.length > 0 && (
-                      <p className="text-muted" style={{ marginTop: 8 }}>Все задания уже в коллекции</p>
+                    ) : (
+                      <>
+                        {colTasks.length === 0 && <p className="text-muted">Заданий в коллекции нет</p>}
+                        {colTasks.map(task => (
+                          <div className="file-row" key={task.id}>
+                            <span>
+                              <strong>{task.title}</strong>
+                              <span className="badge" style={{ marginLeft: 6 }}>{task.source.toUpperCase()}</span>
+                              {task.year && <span className="text-muted" style={{ marginLeft: 6 }}>{task.year}</span>}
+                            </span>
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => handleRemoveFromCollection(col.id, task.id)}
+                            >
+                              Убрать
+                            </button>
+                          </div>
+                        ))}
+                        {availableTasks.length > 0 && (
+                          <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
+                            <select
+                              value={addToCol[col.id] ?? ''}
+                              onChange={e => setAddToCol(s => ({ ...s, [col.id]: e.target.value }))}
+                              style={{ flex: 1, border: '1px solid #ddd', borderRadius: 4, padding: '6px 8px', fontSize: 13 }}
+                            >
+                              <option value="">— выбрать задание —</option>
+                              {availableTasks.map(t => (
+                                <option key={t.id} value={t.id}>
+                                  [{t.source.toUpperCase()}] {t.title}{t.year ? ` (${t.year})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              className="btn btn-primary"
+                              onClick={() => handleAddToCollection(col.id)}
+                              disabled={!addToCol[col.id]}
+                            >
+                              + Добавить
+                            </button>
+                          </div>
+                        )}
+                        {availableTasks.length === 0 && tasks.length > 0 && (
+                          <p className="text-muted" style={{ marginTop: 8 }}>Все задания уже в коллекции</p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

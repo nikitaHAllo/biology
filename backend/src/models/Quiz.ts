@@ -94,7 +94,6 @@ Quiz.init(
 			type: DataTypes.INTEGER,
 			allowNull: false,
 			defaultValue: 1,
-			references: { model: 'quiz_categories', key: 'id' },
 		},
 	},
 	{

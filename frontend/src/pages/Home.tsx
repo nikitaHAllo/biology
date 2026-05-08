@@ -33,6 +33,7 @@ export default function Home() {
 						id: c.id,
 						title: c.title,
 						description: c.description ?? '',
+						download_url: c.download_url,
 					}))}
 					selected={selectedTasks}
 					taskFilter={taskFilter}

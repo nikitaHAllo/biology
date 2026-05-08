@@ -15,14 +15,14 @@ import {
 import {
   IconDownload,
   IconFileDescription,
-  IconProgress,
 } from "@tabler/icons-react";
 import type { DownloadableTask } from "../../models";
 
 interface Collection {
   id: number | string;
   title: string;
-  description: string;
+  description?: string;
+  download_url?: string | null;
 }
 
 interface TasksSectionProps {
@@ -155,11 +155,21 @@ export function TasksSection({
                 </ThemeIcon>
                 <Text fw={600}>{collection.title}</Text>
               </Group>
-              <Text size="sm" c="dimmed">
-                {collection.description}
-              </Text>
-              <Button variant="subtle" leftSection={<IconProgress size={16} />}>
-                Собрать коллекцию
+              {collection.description && (
+                <Text size="sm" c="dimmed">
+                  {collection.description}
+                </Text>
+              )}
+              <Button
+                variant="filled"
+                color="grape"
+                leftSection={<IconDownload size={16} />}
+                component="a"
+                href={collection.download_url ?? undefined}
+                target="_blank"
+                disabled={!collection.download_url}
+              >
+                Скачать коллекцию
               </Button>
             </Stack>
           </Card>

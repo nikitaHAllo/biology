@@ -65,6 +65,7 @@ export interface AdminCollection {
   title: string;
   source: 'ege' | 'fipi' | 'other';
   description: string | null;
+  download_url: string | null;
   tasks: AdminTask[];
   created_at: string;
 }
@@ -269,7 +270,7 @@ export const api = {
   getCollections: () =>
     req<{ collections: AdminCollection[] }>('GET', '/collections'),
 
-  createCollection: (body: { title: string; source: 'ege' | 'fipi' | 'other'; description?: string }) =>
+  createCollection: (body: { title: string; source: 'ege' | 'fipi' | 'other'; description?: string; download_url?: string }) =>
     req('POST', '/collections', body),
 
   deleteCollection: (id: number) =>

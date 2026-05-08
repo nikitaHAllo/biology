@@ -21,7 +21,7 @@ export function useTopicPurchase() {
 	// Функция покупки темы
 	const purchaseTopic = useCallback(
 		async (
-			telegramId: number,
+			telegramId: number | undefined,
 			topic: Topic,
 			onSuccess?: (newBalance: number) => void
 		) => {

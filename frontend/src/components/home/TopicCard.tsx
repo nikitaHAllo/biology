@@ -45,11 +45,6 @@ export function TopicCard({
 
 	// Обработчик покупки темы
 	const handlePurchase = async () => {
-		if (!telegramId) {
-			// Можно показать уведомление, что нужно авторизоваться
-			return;
-		}
-
 		if (isUnlocked) {
 			// Тема уже открыта - ничего не делаем
 			return;

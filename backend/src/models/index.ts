@@ -144,8 +144,8 @@ UserMaterialAccess.belongsTo(MaterialTopic, {
 Quiz.hasMany(QuizQuestion, { foreignKey: 'quiz_id', as: 'questions' });
 QuizQuestion.belongsTo(Quiz, { foreignKey: 'quiz_id', as: 'quiz' });
 
-QuizCategory.hasMany(Quiz, { foreignKey: 'category_id', as: 'quizzes' });
-Quiz.belongsTo(QuizCategory, { foreignKey: 'category_id', as: 'category' });
+QuizCategory.hasMany(Quiz, { foreignKey: 'category_id', as: 'quizzes', constraints: false });
+Quiz.belongsTo(QuizCategory, { foreignKey: 'category_id', as: 'category', constraints: false });
 
 QuizQuestion.hasMany(QuizOption, {
 	foreignKey: 'question_id',

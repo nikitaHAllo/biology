@@ -8,7 +8,6 @@ import {
 	WalletTransaction,
 } from '../../models';
 import { sequelize } from '../../db/sequelize';
-import { usersService } from '../../services/users.service';
 
 function toNumber(value: unknown): number | undefined {
 	if (value === null || value === undefined) return undefined;
@@ -17,28 +16,28 @@ function toNumber(value: unknown): number | undefined {
 }
 
 class MaterialsController {
+	private async resolveUser(req: Request): Promise<User | null> {
+		if (req.user) return req.user;
+		const telegramId = (req.query.telegramId ?? req.body?.telegramId) as string | undefined;
+		if (!telegramId) return null;
+		const tgNum = Number(telegramId);
+		if (!Number.isInteger(tgNum) || tgNum <= 0) return null;
+		return User.findOne({ where: { telegram_id: tgNum } });
+	}
+
 	async getCatalog(req: Request, res: Response) {
 		try {
-			const telegramIdRaw = req.query.telegramId as string | undefined;
-			const telegramId = telegramIdRaw ? Number(telegramIdRaw) : undefined;
 			let userAccessMap = new Map<number, boolean>();
 
-			let userId: number | null = null;
-			if (telegramId) {
-				const user = await User.findOne({
-					where: { telegram_id: telegramId },
+			const resolvedUser = await this.resolveUser(req);
+			if (resolvedUser) {
+				const userId = Number(resolvedUser.get('id'));
+				const accesses = await UserMaterialAccess.findAll({
+					where: { user_id: userId },
 				});
-				if (user) {
-					userId = Number(user.get('id'));
-					if (userId) {
-						const accesses = await UserMaterialAccess.findAll({
-							where: { user_id: userId },
-						});
-						userAccessMap = new Map(
-							accesses.map(access => [access.topic_id, true])
-						);
-					}
-				}
+				userAccessMap = new Map(
+					accesses.map(access => [access.topic_id, true])
+				);
 			}
 
 			const sections = await MaterialSection.findAll({
@@ -117,7 +116,6 @@ class MaterialsController {
 	async purchaseTopic(req: Request, res: Response) {
 		try {
 			const { topicId } = req.params;
-			const { telegramId } = req.body as { telegramId?: unknown };
 
 			// Validate topicId
 			const topicIdNum = Number(topicId);
@@ -128,24 +126,15 @@ class MaterialsController {
 				});
 			}
 
-			// Validate telegramId
-			const tgIdNum = Number(telegramId);
-			if (!Number.isInteger(tgIdNum) || tgIdNum <= 0) {
-				return res.status(400).json({
+			const resolvedUser = await this.resolveUser(req);
+			if (!resolvedUser) {
+				return res.status(401).json({
 					success: false,
-					message: 'Некорректный telegramId пользователя',
+					message: 'Требуется аутентификация',
 				});
 			}
 
-			let user = await User.findOne({
-				where: { telegram_id: tgIdNum },
-				raw: true,
-			});
-
-			if (!user) {
-				// Автоматическая регистрация пользователя, если он ещё не создан
-				user = await usersService.registerOrUpdateUser(tgIdNum);
-			}
+			const user = resolvedUser;
 
 			const topic = await MaterialTopic.findByPk(topicIdNum, {
 				include: [{ model: MaterialSection, as: 'section' }],
@@ -295,24 +284,21 @@ class MaterialsController {
 
 	async checkTopicAccess(req: Request, res: Response) {
 		try {
-			const { telegramId, topicId } = req.query;
+			const { topicId } = req.query;
 
-			if (!telegramId || !topicId) {
+			if (!topicId) {
 				return res.status(400).json({
 					success: false,
-					message: 'Не указаны необходимые параметры',
+					message: 'Не указан topicId',
 				});
 			}
 
-			const user = await User.findOne({
-				where: { telegram_id: Number(telegramId) },
-				raw: true,
-			});
+			const user = await this.resolveUser(req);
 
 			if (!user) {
-				return res.status(404).json({
+				return res.status(401).json({
 					success: false,
-					message: 'Пользователь не найден',
+					message: 'Требуется аутентификация',
 				});
 			}
 

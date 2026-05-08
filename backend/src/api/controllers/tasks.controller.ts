@@ -71,6 +71,7 @@ class TasksController {
 					title: collection.title,
 					source: collection.source,
 					description: collection.description,
+					download_url: collection.download_url ?? null,
 					total_tasks: sortedTasks.length,
 					total_size:
 						asNumber(collection.total_size) ??
