@@ -7,6 +7,7 @@ interface UserBioGardenProgressAttributes {
 	id: number;
 	user_id: number;
 	plant_id: number;
+	slot_index: number | null;
 	current_stage: number;
 	experience_points: number;
 	health_points: number;
@@ -30,6 +31,7 @@ interface UserBioGardenProgressCreationAttributes extends Optional<
 	| 'id'
 	| 'created_at'
 	| 'updated_at'
+	| 'slot_index'
 	| 'is_completed'
 	| 'is_unlocked'
 	| 'combo_count'
@@ -55,6 +57,7 @@ export class UserBioGardenProgress
 	declare id: number;
 	declare user_id: number;
 	declare plant_id: number;
+	declare slot_index: number | null;
 	declare current_stage: number;
 	declare experience_points: number;
 	declare health_points: number;
@@ -99,6 +102,10 @@ UserBioGardenProgress.init(
 				model: 'bio_garden_plants',
 				key: 'id',
 			},
+		},
+		slot_index: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
 		},
 		current_stage: {
 			type: DataTypes.INTEGER,

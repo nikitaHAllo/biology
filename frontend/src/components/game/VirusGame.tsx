@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiService } from '../../api';
-import type { VirusCase, VirusClue, VirusSuspect } from '../../models/virus';
+import type {
+	VirusCase,
+	VirusChapter,
+	VirusChapterOption,
+	SubmitAnswerResponse,
+	CompleteVirusCaseResponse,
+} from '../../models/virus';
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 
@@ -9,19 +15,18 @@ const CSS = `
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes vShake {
-  0%,100% { transform: translateX(0); }
-  20%,60% { transform: translateX(-6px); }
-  40%,80% { transform: translateX(6px); }
-}
 @keyframes vPop {
   0%   { transform: scale(0.92); opacity: 0; }
   60%  { transform: scale(1.04); }
   100% { transform: scale(1);    opacity: 1; }
 }
+@keyframes vFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 .v-slide { animation: vSlideIn 0.35s ease both; }
-.v-shake { animation: vShake 0.4s ease; }
 .v-pop   { animation: vPop 0.4s ease both; }
+.v-fade  { animation: vFadeIn 0.3s ease both; }
 `;
 
 function injectCss(id: string, css: string) {
@@ -33,12 +38,25 @@ function injectCss(id: string, css: string) {
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const DIFF_LABEL: Record<string, string> = { easy: 'Лёгкий', medium: 'Средний', hard: 'Сложный' };
 const DIFF_COLOR: Record<string, string> = { easy: '#22c55e', medium: '#f59e0b', hard: '#ef4444' };
-const CLUE_ICON: Record<string, string> = { symptom: '🤒', lab: '🔬', observation: '👁️' };
-const CLUE_LABEL: Record<string, string> = { symptom: 'Симптом', lab: 'Лаб. данные', observation: 'Наблюдение' };
+const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E'];
+
+// ── Shared styles helper ──────────────────────────────────────────────────────
+
+const btn = (bg: string, small = false): React.CSSProperties => ({
+  background: bg,
+  color: '#fff',
+  border: 'none',
+  borderRadius: 10,
+  padding: small ? '8px 16px' : '12px 24px',
+  fontSize: small ? 13 : 15,
+  fontWeight: 700,
+  cursor: 'pointer',
+  transition: 'opacity 0.15s',
+});
 
 // ── CaseList ──────────────────────────────────────────────────────────────────
 
@@ -109,8 +127,14 @@ function CaseList({ onSelect }: { onSelect: (c: VirusCase) => void }) {
           className="v-slide"
           style={styles.card}
           onClick={() => onSelect(c)}
-          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px #0001'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = ''; (e.currentTarget as HTMLDivElement).style.transform = ''; }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px #0001';
+            (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLDivElement).style.boxShadow = '';
+            (e.currentTarget as HTMLDivElement).style.transform = '';
+          }}
         >
           <div style={styles.icon}>🦠</div>
           <div style={{ flex: 1 }}>
@@ -119,7 +143,11 @@ function CaseList({ onSelect }: { onSelect: (c: VirusCase) => void }) {
             <div style={styles.badges}>
               <span style={styles.badge(DIFF_COLOR[c.difficulty] ?? '#6b7280')}>{DIFF_LABEL[c.difficulty] ?? c.difficulty}</span>
               <span style={styles.badge('#f59e0b')}>🪙 {c.coins_reward} монет</span>
-              {c.is_completed && <span style={styles.badge('#22c55e')}>✓ Решён ({c.score}%)</span>}
+              {c.is_completed && (
+                <span style={styles.badge('#22c55e')}>
+                  ✓ Пройдено ({c.score ?? 0}%)
+                </span>
+              )}
             </div>
           </div>
           <span style={styles.done}>{c.is_completed ? '✅' : '▶'}</span>
@@ -129,266 +157,414 @@ function CaseList({ onSelect }: { onSelect: (c: VirusCase) => void }) {
   );
 }
 
-// ── PlayScreen ────────────────────────────────────────────────────────────────
+// ── GameScreen ────────────────────────────────────────────────────────────────
 
-interface PlayState {
-  virusCase: VirusCase;
-  clues: VirusClue[];
-  suspects: VirusSuspect[];
-  revealedCount: number;
-  eliminatedIds: Set<number>;
-  won: boolean;
-  correctId: number | null;
-  resultCoins: number;
-  resultScore: number;
-  shakeId: number | null;
-  feedbackId: number | null;
+type Phase = 'intro' | 'reading' | 'answered' | 'finished';
+
+interface AnswerRecord {
+  optionId: number;
+  is_correct: boolean;
+  consequence_text: string;
+  correct_option_id: number;
 }
 
-function PlayScreen({ virusCase, onBack }: { virusCase: VirusCase; onBack: () => void }) {
-  const [state, setState] = useState<PlayState | null>(null);
+interface GameState {
+  activeCase: VirusCase;
+  chapters: VirusChapter[];
+  currentChapterIndex: number;
+  answers: Record<number, AnswerRecord>; // chapterId -> answer
+  phase: Phase;
+  correctCount: number;
+  gameResult: CompleteVirusCaseResponse | null;
+  submitting: boolean;
+  completing: boolean;
+}
+
+function GameScreen({ virusCase, onBack }: { virusCase: VirusCase; onBack: () => void }) {
+  const [state, setState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
-  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completeCalledRef = useRef(false);
 
   useEffect(() => {
     apiService.getVirusCase(virusCase.id)
       .then(d => {
         const c = d.case;
         setState({
-          virusCase: c,
-          clues: c.clues ?? [],
-          suspects: c.suspects ?? [],
-          revealedCount: 0,
-          eliminatedIds: new Set(),
-          won: false,
-          correctId: null,
-          resultCoins: 0,
-          resultScore: 0,
-          shakeId: null,
-          feedbackId: null,
+          activeCase: c,
+          chapters: c.chapters ?? [],
+          currentChapterIndex: -1, // -1 = intro screen
+          answers: {},
+          phase: 'intro',
+          correctCount: 0,
+          gameResult: null,
+          submitting: false,
+          completing: false,
         });
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-    return () => { if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current); };
   }, [virusCase.id]);
+
+  // Trigger complete when entering finished phase
+  useEffect(() => {
+    if (!state || state.phase !== 'finished' || completeCalledRef.current) return;
+    completeCalledRef.current = true;
+    const { activeCase, chapters, correctCount } = state;
+    setState(s => s ? { ...s, completing: true } : s);
+    apiService.completeVirusCase(activeCase.id, correctCount, chapters.length)
+      .then(result => {
+        setState(s => s ? { ...s, gameResult: result, completing: false } : s);
+      })
+      .catch(err => {
+        console.error('complete error:', err);
+        setState(s => s ? { ...s, completing: false } : s);
+      });
+  }, [state?.phase]);
 
   if (loading || !state) return <p style={{ padding: 16, color: '#6b7280' }}>Загрузка...</p>;
 
-  const visibleClues = state.clues.slice(0, state.revealedCount);
-  const allRevealed = state.revealedCount >= state.clues.length;
-  const activeSuspects = state.suspects.filter(s => !state.eliminatedIds.has(s.id));
+  const { activeCase, chapters, currentChapterIndex, answers, phase, correctCount, gameResult, submitting, completing } = state;
+  const currentChapter: VirusChapter | undefined = chapters[currentChapterIndex];
+  const totalChapters = chapters.length;
+  const progress = totalChapters > 0 ? ((currentChapterIndex + 1) / totalChapters) * 100 : 0;
 
-  const revealNext = () => {
-    if (!allRevealed) setState(s => s ? { ...s, revealedCount: s.revealedCount + 1 } : s);
+  const handleStartGame = () => {
+    setState(s => s ? { ...s, currentChapterIndex: 0, phase: 'reading' } : s);
   };
 
-  const handleGuess = async (suspect: VirusSuspect) => {
-    if (state.won || state.eliminatedIds.has(suspect.id)) return;
+  const handleSelectOption = async (option: VirusChapterOption) => {
+    if (!currentChapter || state.submitting) return;
+    setState(s => s ? { ...s, submitting: true } : s);
     try {
-      const res = await apiService.guessVirusSuspect(state.virusCase.id, suspect.id);
-      if (res.is_correct) {
-        const complete = await apiService.completeVirusCase(state.virusCase.id, state.revealedCount);
-        setState(s => s ? { ...s, won: true, correctId: suspect.id, resultCoins: complete.coins_earned, resultScore: complete.score } : s);
-      } else {
-        setState(s => s ? { ...s, eliminatedIds: new Set([...s.eliminatedIds, suspect.id]), shakeId: suspect.id, feedbackId: suspect.id } : s);
-        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
-        feedbackTimerRef.current = setTimeout(() => {
-          setState(s => s ? { ...s, shakeId: null, feedbackId: null } : s);
-        }, 1800);
-      }
+      const result: SubmitAnswerResponse = await apiService.submitVirusAnswer(
+        activeCase.id,
+        currentChapter.id,
+        option.id,
+      );
+      setState(s => {
+        if (!s) return s;
+        const newAnswers = {
+          ...s.answers,
+          [currentChapter.id]: {
+            optionId: option.id,
+            is_correct: result.is_correct,
+            consequence_text: result.consequence_text,
+            correct_option_id: result.correct_option_id,
+          },
+        };
+        return {
+          ...s,
+          answers: newAnswers,
+          correctCount: result.is_correct ? s.correctCount + 1 : s.correctCount,
+          phase: 'answered',
+          submitting: false,
+        };
+      });
     } catch (e) {
       console.error(e);
+      setState(s => s ? { ...s, submitting: false } : s);
+    }
+  };
+
+  const handleNextChapter = () => {
+    const nextIndex = currentChapterIndex + 1;
+    if (nextIndex >= totalChapters) {
+      setState(s => s ? { ...s, phase: 'finished' } : s);
+    } else {
+      setState(s => s ? { ...s, currentChapterIndex: nextIndex, phase: 'reading' } : s);
     }
   };
 
   const st = {
-    layout: { display: 'flex', gap: 20, alignItems: 'flex-start' } as React.CSSProperties,
-    left: { flex: 1, minWidth: 0 } as React.CSSProperties,
-    right: { width: 260, flexShrink: 0 } as React.CSSProperties,
-    section: { marginBottom: 20 } as React.CSSProperties,
-    sectionTitle: { fontSize: 13, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 8 },
-    patientCard: {
-      background: '#fef9f0',
-      border: '1px solid #fde68a',
-      borderRadius: 12,
-      padding: '12px 16px',
-      fontSize: 14,
-      color: '#78350f',
-      marginBottom: 16,
-    } as React.CSSProperties,
-    clueItem: (type: string) => ({
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: 10,
-      padding: '10px 14px',
-      background: '#f9fafb',
-      borderRadius: 10,
-      marginBottom: 8,
-      borderLeft: `3px solid ${type === 'symptom' ? '#ef4444' : type === 'lab' ? '#3b82f6' : '#8b5cf6'}`,
-      animation: 'vSlideIn 0.35s ease both',
-    }) as React.CSSProperties,
-    clueIcon: { fontSize: 18, flexShrink: 0 } as React.CSSProperties,
-    clueBody: { flex: 1 } as React.CSSProperties,
-    clueType: { fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' as const },
-    clueText: { fontSize: 14, color: '#111827', marginTop: 1 } as React.CSSProperties,
-    revealBtn: {
-      width: '100%',
-      padding: '10px 0',
-      background: '#3b82f6',
-      color: '#fff',
-      border: 'none',
-      borderRadius: 10,
-      fontSize: 14,
-      fontWeight: 600,
-      cursor: 'pointer',
-      marginTop: 4,
-    } as React.CSSProperties,
-    suspectCard: (id: number) => {
-      const eliminated = state.eliminatedIds.has(id);
-      const correct = state.correctId === id;
-      return {
-        padding: '12px 14px',
-        borderRadius: 12,
-        border: `2px solid ${correct ? '#22c55e' : eliminated ? '#e5e7eb' : '#e5e7eb'}`,
-        background: correct ? '#f0fdf4' : eliminated ? '#f9fafb' : '#fff',
-        marginBottom: 8,
-        cursor: eliminated || state.won ? 'default' : 'pointer',
-        opacity: eliminated ? 0.45 : 1,
-        transition: 'border-color 0.2s, background 0.2s, opacity 0.2s',
-        position: 'relative' as const,
-      } as React.CSSProperties;
-    },
-    suspectName: { fontSize: 14, fontWeight: 600, color: '#111827' } as React.CSSProperties,
-    suspectDesc: { fontSize: 12, color: '#6b7280', marginTop: 2 } as React.CSSProperties,
-    eliminated: { fontSize: 11, color: '#ef4444', fontWeight: 600, marginTop: 4 } as React.CSSProperties,
-    wrongFeedback: {
-      position: 'absolute' as const,
-      top: 8, right: 10,
-      fontSize: 11,
-      color: '#ef4444',
-      fontWeight: 700,
-      background: '#fef2f2',
-      borderRadius: 6,
-      padding: '2px 7px',
-    } as React.CSSProperties,
-    wonBanner: {
-      background: '#f0fdf4',
-      border: '2px solid #22c55e',
-      borderRadius: 14,
-      padding: '20px 24px',
-      textAlign: 'center' as const,
-      marginBottom: 20,
-      animation: 'vPop 0.4s ease both',
-    } as React.CSSProperties,
-    wonTitle: { fontSize: 22, fontWeight: 800, color: '#15803d', margin: '0 0 6px' } as React.CSSProperties,
-    wonSub: { fontSize: 14, color: '#166534' } as React.CSSProperties,
-    progress: {
+    backBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#6b7280', marginBottom: 16, padding: 0 } as React.CSSProperties,
+    progressBar: {
       height: 6,
       background: '#e5e7eb',
       borderRadius: 99,
       overflow: 'hidden',
-      marginBottom: 12,
+      marginBottom: 20,
     } as React.CSSProperties,
-    progressBar: {
+    progressFill: {
       height: '100%',
       background: '#3b82f6',
       borderRadius: 99,
       transition: 'width 0.4s ease',
-      width: `${state.clues.length > 0 ? (state.revealedCount / state.clues.length) * 100 : 0}%`,
+      width: `${progress}%`,
+    } as React.CSSProperties,
+    card: {
+      background: '#fff',
+      border: '1px solid #e5e7eb',
+      borderRadius: 16,
+      padding: '20px 24px',
+      marginBottom: 16,
+    } as React.CSSProperties,
+    narrativeBox: {
+      background: '#f0f9ff',
+      border: '1px solid #bae6fd',
+      borderRadius: 12,
+      padding: '14px 18px',
+      fontSize: 14,
+      color: '#0c4a6e',
+      lineHeight: 1.6,
+      marginBottom: 20,
+    } as React.CSSProperties,
+    questionText: {
+      fontSize: 16,
+      fontWeight: 700,
+      color: '#111827',
+      marginBottom: 16,
+    } as React.CSSProperties,
+    chapterTitle: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: '#6b7280',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.05em',
+      marginBottom: 8,
+    },
+    optionBtn: (selected: boolean, isCorrect: boolean, isWrong: boolean): React.CSSProperties => ({
+      width: '100%',
+      textAlign: 'left' as const,
+      padding: '12px 16px',
+      borderRadius: 10,
+      border: `2px solid ${isCorrect ? '#22c55e' : isWrong ? '#ef4444' : selected ? '#3b82f6' : '#e5e7eb'}`,
+      background: isCorrect ? '#f0fdf4' : isWrong ? '#fef2f2' : selected ? '#eff6ff' : '#fff',
+      cursor: selected || isCorrect || isWrong ? 'default' : 'pointer',
+      fontSize: 14,
+      fontWeight: selected || isCorrect || isWrong ? 600 : 400,
+      color: isCorrect ? '#15803d' : isWrong ? '#b91c1c' : '#111827',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 8,
+      transition: 'border-color 0.2s, background 0.2s',
+    }),
+    optionLetter: (selected: boolean, isCorrect: boolean, isWrong: boolean): React.CSSProperties => ({
+      width: 28,
+      height: 28,
+      borderRadius: '50%',
+      background: isCorrect ? '#22c55e' : isWrong ? '#ef4444' : selected ? '#3b82f6' : '#f3f4f6',
+      color: isCorrect || isWrong || selected ? '#fff' : '#374151',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 12,
+      fontWeight: 700,
+      flexShrink: 0,
+    }),
+    consequenceBox: {
+      background: '#fefce8',
+      border: '1px solid #fde047',
+      borderRadius: 12,
+      padding: '14px 18px',
+      fontSize: 14,
+      color: '#713f12',
+      lineHeight: 1.6,
+      marginTop: 16,
+      marginBottom: 16,
+    } as React.CSSProperties,
+    resultBanner: (passed: boolean): React.CSSProperties => ({
+      background: passed ? '#f0fdf4' : '#fff7ed',
+      border: `2px solid ${passed ? '#22c55e' : '#fb923c'}`,
+      borderRadius: 16,
+      padding: '28px 32px',
+      textAlign: 'center' as const,
+      marginBottom: 20,
+    }),
+    resultTitle: (passed: boolean): React.CSSProperties => ({
+      fontSize: 26,
+      fontWeight: 800,
+      color: passed ? '#15803d' : '#c2410c',
+      margin: '0 0 12px',
+    }),
+    resultText: {
+      fontSize: 14,
+      lineHeight: 1.6,
+      color: '#374151',
+      marginBottom: 16,
+    } as React.CSSProperties,
+    scoreText: (passed: boolean): React.CSSProperties => ({
+      fontSize: 18,
+      fontWeight: 700,
+      color: passed ? '#15803d' : '#c2410c',
+      marginBottom: 12,
+    }),
+    coinsBadge: {
+      display: 'inline-block',
+      background: '#fef3c7',
+      color: '#92400e',
+      borderRadius: 8,
+      padding: '6px 14px',
+      fontSize: 15,
+      fontWeight: 700,
+      marginBottom: 20,
+    } as React.CSSProperties,
+    introCard: {
+      background: '#fff',
+      border: '1px solid #e5e7eb',
+      borderRadius: 16,
+      padding: '28px 32px',
+      marginBottom: 20,
+    } as React.CSSProperties,
+    roleText: {
+      fontSize: 15,
+      color: '#374151',
+      lineHeight: 1.7,
+      background: '#f9fafb',
+      border: '1px solid #e5e7eb',
+      borderRadius: 12,
+      padding: '16px 20px',
+      marginTop: 12,
+      marginBottom: 20,
     } as React.CSSProperties,
   };
 
-  return (
-    <div>
-      <button
-        onClick={onBack}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#6b7280', marginBottom: 16, padding: 0 }}
-      >
-        ← Назад к списку
-      </button>
-
-      {state.won && (
-        <div style={st.wonBanner} className="v-pop">
-          <p style={st.wonTitle}>🎉 Дело раскрыто!</p>
-          <p style={st.wonSub}>
-            Счёт: <b>{state.resultScore}%</b> · Монеты: <b>{state.resultCoins > 0 ? `+${state.resultCoins} 🪙` : '0 (уже получены)'}</b>
-          </p>
-          <p style={st.wonSub}>Улик использовано: {state.revealedCount} из {state.clues.length}</p>
-        </div>
-      )}
-
-      <div style={st.layout}>
-        {/* Left: patient + clues */}
-        <div style={st.left}>
-          {state.virusCase.patient_info && (
-            <div style={st.section}>
-              <p style={st.sectionTitle}>Пациент</p>
-              <div style={st.patientCard}>{state.virusCase.patient_info}</div>
+  // ── Intro Screen ──────────────────────────────────────────────────────────
+  if (phase === 'intro') {
+    return (
+      <div className="v-slide">
+        <button onClick={onBack} style={st.backBtn}>← Назад к списку</button>
+        <div style={st.introCard}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 800 }}>🦠 {activeCase.title}</h2>
+          {activeCase.description && (
+            <p style={{ margin: '0 0 12px', fontSize: 14, color: '#6b7280' }}>{activeCase.description}</p>
+          )}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            <span style={{ background: DIFF_COLOR[activeCase.difficulty] + '22', color: DIFF_COLOR[activeCase.difficulty], borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>
+              {DIFF_LABEL[activeCase.difficulty]}
+            </span>
+            <span style={{ background: '#fef3c7', color: '#92400e', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>
+              🪙 {activeCase.coins_reward} монет
+            </span>
+            <span style={{ background: '#eff6ff', color: '#1d4ed8', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>
+              {totalChapters} {totalChapters === 1 ? 'глава' : totalChapters < 5 ? 'главы' : 'глав'}
+            </span>
+          </div>
+          {activeCase.role_description && (
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 4px' }}>
+                Твоя роль
+              </p>
+              <div style={st.roleText}>{activeCase.role_description}</div>
             </div>
           )}
-
-          <div style={st.section}>
-            <p style={st.sectionTitle}>
-              Улики ({state.revealedCount}/{state.clues.length})
-            </p>
-            <div style={st.progress}>
-              <div style={st.progressBar} />
-            </div>
-
-            {visibleClues.map(clue => (
-              <div key={clue.id} style={st.clueItem(clue.clue_type)}>
-                <span style={st.clueIcon}>{CLUE_ICON[clue.clue_type] ?? '📋'}</span>
-                <div style={st.clueBody}>
-                  <p style={st.clueType}>{CLUE_LABEL[clue.clue_type] ?? clue.clue_type}</p>
-                  <p style={st.clueText}>{clue.clue_text}</p>
-                </div>
-              </div>
-            ))}
-
-            {!state.won && (
-              <button
-                style={{ ...st.revealBtn, ...(allRevealed ? { background: '#9ca3af', cursor: 'default' } : {}) }}
-                onClick={revealNext}
-                disabled={allRevealed}
-              >
-                {allRevealed ? 'Все улики открыты' : `Следующая улика (${state.clues.length - state.revealedCount} осталось)`}
-              </button>
-            )}
-          </div>
+          {totalChapters === 0 ? (
+            <p style={{ color: '#9ca3af', fontSize: 14 }}>Главы ещё не добавлены в этот случай.</p>
+          ) : (
+            <button onClick={handleStartGame} style={btn('#3b82f6')}>
+              Начать расследование →
+            </button>
+          )}
         </div>
+      </div>
+    );
+  }
 
-        {/* Right: suspects */}
-        <div style={st.right}>
-          <p style={st.sectionTitle}>Подозреваемые</p>
-          <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>
-            {state.won
-              ? 'Дело закрыто'
-              : activeSuspects.length === 1
-              ? 'Остался один — назови его!'
-              : 'Нажми на патоген, чтобы обвинить его'}
+  // ── Finished Screen ───────────────────────────────────────────────────────
+  if (phase === 'finished') {
+    const isPassed = gameResult ? gameResult.is_passed : (correctCount / Math.max(totalChapters, 1)) >= 0.5;
+    const scoreVal = gameResult ? gameResult.score : Math.round((correctCount / Math.max(totalChapters, 1)) * 100);
+    const displayText = isPassed ? activeCase.success_text : activeCase.failure_text;
+
+    return (
+      <div className="v-pop">
+        <button onClick={onBack} style={st.backBtn}>← Назад к списку</button>
+        <div style={st.resultBanner(isPassed)}>
+          <p style={{ fontSize: 36, margin: '0 0 8px' }}>{isPassed ? '🎉' : '⚠️'}</p>
+          <p style={st.resultTitle(isPassed)}>
+            {isPassed ? 'Расследование завершено!' : 'Нужно ещё поучиться'}
           </p>
-          {state.suspects.map(suspect => (
-            <div
-              key={suspect.id}
-              className={state.shakeId === suspect.id ? 'v-shake' : ''}
-              style={st.suspectCard(suspect.id)}
-              onClick={() => handleGuess(suspect)}
-            >
-              {state.feedbackId === suspect.id && (
-                <span style={st.wrongFeedback}>Не то!</span>
-              )}
-              <p style={st.suspectName}>
-                {state.correctId === suspect.id ? '✅ ' : state.eliminatedIds.has(suspect.id) ? '❌ ' : '🦠 '}
-                {suspect.name}
-              </p>
-              {suspect.description && <p style={st.suspectDesc}>{suspect.description}</p>}
-              {state.eliminatedIds.has(suspect.id) && (
-                <p style={st.eliminated}>Исключён</p>
-              )}
-            </div>
-          ))}
+          <p style={st.scoreText(isPassed)}>
+            {correctCount} / {totalChapters} правильных ответов — {scoreVal}%
+          </p>
+          {completing && <p style={{ color: '#9ca3af', fontSize: 13 }}>Сохранение результата...</p>}
+          {gameResult && gameResult.coins_earned > 0 && (
+            <span style={st.coinsBadge}>+{gameResult.coins_earned} 🪙 монет</span>
+          )}
+          {displayText && (
+            <p style={st.resultText}>{displayText}</p>
+          )}
         </div>
+        <button onClick={onBack} style={btn('#6b7280')}>
+          Вернуться к делам
+        </button>
+      </div>
+    );
+  }
+
+  // ── Chapter Screen ────────────────────────────────────────────────────────
+  if (!currentChapter) return null;
+
+  const answerRecord = answers[currentChapter.id];
+  const isAnswered = !!answerRecord;
+
+  return (
+    <div>
+      <button onClick={onBack} style={st.backBtn}>← Назад к списку</button>
+
+      {/* Progress bar */}
+      <div style={st.progressBar}>
+        <div style={st.progressFill} />
+      </div>
+      <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16, textAlign: 'right' }}>
+        Глава {currentChapterIndex + 1} из {totalChapters}
+      </p>
+
+      {/* Chapter card */}
+      <div style={st.card} className="v-slide">
+        <p style={st.chapterTitle}>{currentChapter.title}</p>
+
+        {/* Narrative */}
+        <div style={st.narrativeBox}>
+          {currentChapter.narrative_text}
+        </div>
+
+        {/* Question */}
+        <p style={st.questionText}>{currentChapter.question_text}</p>
+
+        {/* Options */}
+        <div>
+          {currentChapter.options.map((option, idx) => {
+            const isSelected = answerRecord?.optionId === option.id;
+            const isCorrect = isAnswered && option.id === answerRecord.correct_option_id;
+            const isWrong = isAnswered && isSelected && !answerRecord.is_correct;
+
+            return (
+              <button
+                key={option.id}
+                style={st.optionBtn(isSelected, isCorrect, isWrong)}
+                disabled={isAnswered || submitting}
+                onClick={() => handleSelectOption(option)}
+              >
+                <span style={st.optionLetter(isSelected, isCorrect, isWrong)}>
+                  {isCorrect ? '✓' : isWrong ? '✗' : OPTION_LETTERS[idx] ?? String(idx + 1)}
+                </span>
+                <span>{option.text}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Consequence text after answering */}
+        {isAnswered && (
+          <div style={st.consequenceBox} className="v-fade">
+            <strong>{answerRecord.is_correct ? '✅ Верно! ' : '❌ Неверно. '}</strong>
+            {answerRecord.consequence_text}
+          </div>
+        )}
+
+        {/* Next / Finish button */}
+        {isAnswered && (
+          <div style={{ textAlign: 'right' }} className="v-fade">
+            <button onClick={handleNextChapter} style={btn('#3b82f6', true)}>
+              {currentChapterIndex + 1 >= totalChapters ? 'Завершить' : 'Следующая глава →'}
+            </button>
+          </div>
+        )}
+
+        {submitting && (
+          <p style={{ color: '#9ca3af', fontSize: 13, marginTop: 8 }}>Проверка...</p>
+        )}
       </div>
     </div>
   );
@@ -402,7 +578,7 @@ export function VirusGame() {
 
   const wrap: React.CSSProperties = {
     fontFamily: 'system-ui, -apple-system, sans-serif',
-    maxWidth: 860,
+    maxWidth: 720,
     margin: '0 auto',
     padding: '16px',
   };
@@ -420,13 +596,13 @@ export function VirusGame() {
           <div style={header}>
             <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800 }}>🦠 Вирусный детектив</h2>
             <p style={{ margin: 0, color: '#6b7280', fontSize: 14 }}>
-              Раскрывай улики одну за другой и определи, какой патоген вызвал болезнь. Чем меньше улик — тем выше счёт.
+              Расследуй вирусные случаи по главам — анализируй ситуацию и принимай решения как молодой вирусолог.
             </p>
           </div>
           <CaseList onSelect={setSelected} />
         </>
       ) : (
-        <PlayScreen virusCase={selected} onBack={() => setSelected(null)} />
+        <GameScreen virusCase={selected} onBack={() => setSelected(null)} />
       )}
     </div>
   );

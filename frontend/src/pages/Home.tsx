@@ -12,11 +12,8 @@ export default function Home() {
 		featuredQuiz,
 		filteredTasks,
 		collections,
-		selectedTasks,
 		taskFilter,
 		setTaskFilter,
-		toggleTaskSelection,
-		handleBulkDownload,
 	} = useHomeData();
 
 	if (error) return <div>{error}</div>;
@@ -35,11 +32,8 @@ export default function Home() {
 						description: c.description ?? '',
 						download_url: c.download_url,
 					}))}
-					selected={selectedTasks}
 					taskFilter={taskFilter}
 					setTaskFilter={setTaskFilter}
-					toggle={toggleTaskSelection}
-					bulk={handleBulkDownload}
 				/>
 			</Stack>
 		</Container>

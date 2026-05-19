@@ -26,6 +26,54 @@ export interface AdminUser {
   created_at: string;
 }
 
+export interface AdminUserQuizResult {
+  id: number;
+  quiz_title: string;
+  total_questions: number;
+  score: number;
+  is_passed: boolean;
+  earned_coins: number;
+  submitted_at: string;
+}
+
+export interface AdminUserGardenProgress {
+  id: number;
+  plant_name: string;
+  current_stage: number;
+  experience_points: number;
+  is_completed: boolean;
+  is_wilted: boolean;
+  planted_at: string;
+  completed_at: string | null;
+}
+
+export interface AdminUserGeneticResult {
+  id: number;
+  scenario_title: string;
+  score: number;
+  is_completed: boolean;
+  coins_earned: number;
+  completed_at: string | null;
+}
+
+export interface AdminUserVirusResult {
+  id: number;
+  case_title: string;
+  score: number;
+  is_completed: boolean;
+  coins_earned: number;
+  clues_used: number;
+  completed_at: string | null;
+}
+
+export interface AdminUserStats {
+  user: AdminUser;
+  quiz_results: AdminUserQuizResult[];
+  garden_progress: AdminUserGardenProgress[];
+  genetic_results: AdminUserGeneticResult[];
+  virus_results: AdminUserVirusResult[];
+}
+
 export interface AdminFile {
   id: number;
   topic_id: number;
@@ -212,11 +260,33 @@ export interface AdminVirusSuspect {
   order_index: number;
 }
 
+export interface AdminVirusChapterOption {
+  id: number;
+  chapter_id: number;
+  order_index: number;
+  text: string;
+  is_correct: boolean;
+  consequence_text: string;
+}
+
+export interface AdminVirusChapter {
+  id: number;
+  case_id: number;
+  order_index: number;
+  title: string;
+  narrative_text: string;
+  question_text: string;
+  options: AdminVirusChapterOption[];
+}
+
 export interface AdminVirusCase {
   id: number;
   title: string;
   description: string | null;
   patient_info: string | null;
+  role_description: string | null;
+  success_text: string | null;
+  failure_text: string | null;
   difficulty: 'easy' | 'medium' | 'hard';
   coins_reward: number;
   order_index: number;
@@ -224,6 +294,7 @@ export interface AdminVirusCase {
   created_at: string;
   clues?: AdminVirusClue[];
   suspects?: AdminVirusSuspect[];
+  chapters?: AdminVirusChapter[];
 }
 
 export const api = {
@@ -232,6 +303,9 @@ export const api = {
 
   getUsers: () =>
     req<{ users: AdminUser[] }>('GET', '/users'),
+
+  getUserStats: (id: number) =>
+    req<AdminUserStats>('GET', `/users/${id}/stats`),
 
   getSections: () =>
     req<{ sections: AdminSection[] }>('GET', '/sections'),
@@ -372,10 +446,10 @@ export const api = {
   getVirusCase: (id: number) =>
     req<{ case: AdminVirusCase }>('GET', `/virus/cases/${id}`),
 
-  createVirusCase: (body: { title: string; description?: string; patient_info?: string; difficulty?: string; coins_reward?: number; order_index?: number; is_active?: boolean }) =>
+  createVirusCase: (body: { title: string; description?: string; patient_info?: string; role_description?: string; success_text?: string; failure_text?: string; difficulty?: string; coins_reward?: number; order_index?: number; is_active?: boolean }) =>
     req<{ case: AdminVirusCase }>('POST', '/virus/cases', body),
 
-  updateVirusCase: (id: number, body: Partial<{ title: string; description: string | null; patient_info: string | null; difficulty: string; coins_reward: number; order_index: number; is_active: boolean }>) =>
+  updateVirusCase: (id: number, body: Partial<{ title: string; description: string | null; patient_info: string | null; role_description: string | null; success_text: string | null; failure_text: string | null; difficulty: string; coins_reward: number; order_index: number; is_active: boolean }>) =>
     req<{ case: AdminVirusCase }>('PUT', `/virus/cases/${id}`, body),
 
   deleteVirusCase: (id: number) =>
@@ -398,6 +472,26 @@ export const api = {
 
   deleteVirusSuspect: (id: number) =>
     req('DELETE', `/virus/suspects/${id}`),
+
+  // Virus Chapters
+  createVirusChapter: (caseId: number, body: { title: string; narrative_text: string; question_text: string; order_index?: number }) =>
+    req<{ chapter: AdminVirusChapter }>('POST', `/virus/cases/${caseId}/chapters`, body),
+
+  updateVirusChapter: (id: number, body: Partial<{ title: string; narrative_text: string; question_text: string; order_index: number }>) =>
+    req<{ chapter: AdminVirusChapter }>('PUT', `/virus/chapters/${id}`, body),
+
+  deleteVirusChapter: (id: number) =>
+    req('DELETE', `/virus/chapters/${id}`),
+
+  // Virus Chapter Options
+  createVirusChapterOption: (chapterId: number, body: { text: string; is_correct?: boolean; consequence_text: string; order_index?: number }) =>
+    req<{ option: AdminVirusChapterOption }>('POST', `/virus/chapters/${chapterId}/options`, body),
+
+  updateVirusChapterOption: (id: number, body: Partial<{ text: string; is_correct: boolean; consequence_text: string; order_index: number }>) =>
+    req<{ option: AdminVirusChapterOption }>('PUT', `/virus/chapter-options/${id}`, body),
+
+  deleteVirusChapterOption: (id: number) =>
+    req('DELETE', `/virus/chapter-options/${id}`),
 
   // BioGarden
   getBioGardenPlants: () =>

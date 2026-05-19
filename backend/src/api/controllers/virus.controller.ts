@@ -1,5 +1,19 @@
 import { Request, Response } from 'express';
-import { VirusCase, VirusClue, VirusSuspect, VirusResult, User, WalletTransaction } from '../../models';
+import { VirusCase, VirusChapter, VirusChapterOption, VirusResult, User, WalletTransaction } from '../../models';
+
+// ── resolveUser ───────────────────────────────────────────────────────────────
+
+async function resolveUser(req: Request): Promise<User | null> {
+	const jwtUser = (req as any).user;
+	if (jwtUser?.id) {
+		return User.findByPk(jwtUser.id);
+	}
+	const telegramId = (req.body?.telegramId ?? req.query?.telegramId) as string | undefined;
+	if (telegramId) {
+		return User.findOne({ where: { telegram_id: Number(telegramId) } });
+	}
+	return null;
+}
 
 class VirusController {
 	// GET /virus/cases
@@ -8,18 +22,18 @@ class VirusController {
 			const cases = await VirusCase.findAll({
 				where: { is_active: true },
 				order: [['order_index', 'ASC'], ['created_at', 'ASC']],
-				attributes: ['id', 'title', 'description', 'difficulty', 'coins_reward', 'order_index'],
+				attributes: ['id', 'title', 'description', 'role_description', 'difficulty', 'coins_reward', 'order_index'],
 			});
 
-			const userId = (req as any).user?.id;
-			if (!userId) {
+			const user = await resolveUser(req);
+			if (!user) {
 				return res.json({
 					success: true,
 					data: { cases: cases.map(c => ({ ...c.get({ plain: true }), is_completed: false, score: null })) },
 				});
 			}
 
-			const results = await VirusResult.findAll({ where: { user_id: userId }, raw: true });
+			const results = await VirusResult.findAll({ where: { user_id: user.id }, raw: true });
 			const resultMap = new Map(results.map(r => [r.case_id, r]));
 
 			const formatted = cases.map(c => {
@@ -28,6 +42,7 @@ class VirusController {
 					...c.get({ plain: true }),
 					is_completed: r?.is_completed ?? false,
 					score: r?.score ?? null,
+					correct_answers: r?.correct_answers ?? null,
 					coins_earned: r?.coins_earned ?? null,
 				};
 			});
@@ -45,19 +60,29 @@ class VirusController {
 			const id = Number(req.params.id);
 			const virusCase = await VirusCase.findByPk(id, {
 				include: [
-					{ model: VirusClue, as: 'clues' },
-					{ model: VirusSuspect, as: 'suspects' },
+					{
+						model: VirusChapter,
+						as: 'chapters',
+						include: [
+							{
+								model: VirusChapterOption,
+								as: 'options',
+								attributes: ['id', 'chapter_id', 'order_index', 'text', 'consequence_text'],
+							},
+						],
+					},
 				],
 			});
 
 			if (!virusCase) return res.status(404).json({ success: false, message: 'Случай не найден' });
 
 			const plain = virusCase.get({ plain: true }) as any;
-			plain.clues = (plain.clues ?? []).sort((a: any, b: any) => a.order_index - b.order_index);
-			plain.suspects = (plain.suspects ?? []).sort((a: any, b: any) => a.order_index - b.order_index);
-
-			// Hide is_correct from frontend
-			plain.suspects = plain.suspects.map(({ is_correct: _hidden, ...s }: any) => s);
+			plain.chapters = (plain.chapters ?? [])
+				.sort((a: any, b: any) => a.order_index - b.order_index)
+				.map((ch: any) => ({
+					...ch,
+					options: (ch.options ?? []).sort((a: any, b: any) => a.order_index - b.order_index),
+				}));
 
 			return res.json({ success: true, data: { case: plain } });
 		} catch (e) {
@@ -66,24 +91,31 @@ class VirusController {
 		}
 	}
 
-	// POST /virus/cases/:id/guess  — check a suspect guess
-	async guess(req: Request, res: Response) {
+	// POST /virus/cases/:caseId/chapters/:chapterId/answer
+	async submitAnswer(req: Request, res: Response) {
 		try {
-			const case_id = Number(req.params.id);
-			const { suspect_id } = req.body as { suspect_id: number };
+			const chapterId = Number(req.params.chapterId);
+			const { optionId } = req.body as { optionId?: number; telegramId?: string | number };
 
-			const suspect = await VirusSuspect.findOne({ where: { id: suspect_id, case_id }, raw: true });
-			if (!suspect) return res.status(404).json({ success: false, message: 'Подозреваемый не найден' });
+			if (!optionId) return res.status(400).json({ success: false, message: 'optionId обязателен' });
+
+			// Verify option belongs to this chapter
+			const option = await VirusChapterOption.findOne({ where: { id: optionId, chapter_id: chapterId } });
+			if (!option) return res.status(404).json({ success: false, message: 'Вариант не найден' });
+
+			// Find the correct option for this chapter
+			const correctOption = await VirusChapterOption.findOne({ where: { chapter_id: chapterId, is_correct: true } });
 
 			return res.json({
 				success: true,
 				data: {
-					is_correct: suspect.is_correct,
-					description: suspect.is_correct ? suspect.description : null,
+					is_correct: option.is_correct,
+					consequence_text: option.consequence_text,
+					correct_option_id: correctOption?.id ?? option.id,
 				},
 			});
 		} catch (e) {
-			console.error('Virus guess error:', e);
+			console.error('Virus submitAnswer error:', e);
 			return res.status(500).json({ success: false, message: 'Ошибка проверки ответа' });
 		}
 	}
@@ -92,59 +124,75 @@ class VirusController {
 	async complete(req: Request, res: Response) {
 		try {
 			const case_id = Number(req.params.id);
-			const { clues_used } = req.body as { clues_used: number };
-			const userId = (req as any).user?.id;
+			const { correct_answers, total_chapters } = req.body as {
+				correct_answers?: number;
+				total_chapters?: number;
+				telegramId?: string | number;
+			};
 
-			if (!userId) return res.status(401).json({ success: false, message: 'Требуется авторизация' });
+			const user = await resolveUser(req);
+			if (!user) return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 
 			const virusCase = await VirusCase.findByPk(case_id, { raw: true });
 			if (!virusCase) return res.status(404).json({ success: false, message: 'Случай не найден' });
 
-			const totalClues = await VirusClue.count({ where: { case_id } });
-			const used = Math.max(0, Math.min(Number(clues_used ?? totalClues), totalClues));
-			const score = totalClues > 0
-				? Math.max(10, Math.round(((totalClues - used) / totalClues) * 100))
-				: 100;
+			const corrAns = Number(correct_answers ?? 0);
+			const totalCh = Number(total_chapters ?? 1);
+			const score = totalCh > 0 ? Math.round((corrAns / totalCh) * 100) : 0;
+			const is_passed = score >= 50;
 
-			const existing = await VirusResult.findOne({ where: { user_id: userId, case_id }, raw: true });
+			const existing = await VirusResult.findOne({ where: { user_id: user.id, case_id } });
 			let coinsToAdd = 0;
+			const wasCompleted = existing?.is_completed ?? false;
 
 			if (!existing) {
-				coinsToAdd = virusCase.coins_reward;
+				coinsToAdd = is_passed ? virusCase.coins_reward : 0;
 				await VirusResult.create({
-					user_id: userId,
+					user_id: user.id,
 					case_id,
 					score,
-					clues_used: used,
+					clues_used: totalCh,
+					correct_answers: corrAns,
 					coins_earned: coinsToAdd,
 					is_completed: true,
 					completed_at: new Date(),
 				});
-			} else if (!existing.is_completed) {
-				coinsToAdd = virusCase.coins_reward;
-				await VirusResult.update(
-					{ score, clues_used: used, coins_earned: coinsToAdd, is_completed: true, completed_at: new Date() },
-					{ where: { user_id: userId, case_id } }
-				);
-			} else if (score > existing.score) {
-				await VirusResult.update({ score, clues_used: used }, { where: { user_id: userId, case_id } });
+			} else if (!wasCompleted) {
+				coinsToAdd = is_passed ? virusCase.coins_reward : 0;
+				await existing.update({
+					score,
+					clues_used: totalCh,
+					correct_answers: corrAns,
+					coins_earned: coinsToAdd,
+					is_completed: true,
+					completed_at: new Date(),
+				});
+			} else {
+				// Re-attempt: update score/answers but no extra coins
+				await existing.update({ score, clues_used: totalCh, correct_answers: corrAns });
 			}
 
 			if (coinsToAdd > 0) {
-				const user = await User.findByPk(userId);
-				if (user) {
-					await user.update({ coins: Number(user.coins) + coinsToAdd });
-					await WalletTransaction.create({
-						user_id: userId,
-						type: 'credit',
-						amount: coinsToAdd,
-						source: 'virus',
-						meta: { case_id },
-					});
-				}
+				await user.update({ coins: Number(user.coins) + coinsToAdd });
+				await WalletTransaction.create({
+					user_id: user.id,
+					type: 'credit',
+					amount: coinsToAdd,
+					source: 'virus',
+					meta: { case_id },
+				});
 			}
 
-			return res.json({ success: true, data: { coins_earned: coinsToAdd, score } });
+			return res.json({
+				success: true,
+				data: {
+					coins_earned: coinsToAdd,
+					score,
+					is_passed,
+					correct_answers: corrAns,
+					total_chapters: totalCh,
+				},
+			});
 		} catch (e) {
 			console.error('Virus complete error:', e);
 			return res.status(500).json({ success: false, message: 'Ошибка сохранения результата' });

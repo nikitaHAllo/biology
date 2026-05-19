@@ -10,11 +10,8 @@ interface UseHomeDataReturn {
 	featuredQuiz: Quiz | null;
 	filteredTasks: DownloadableTask[];
 	collections: TaskCollection[];
-	selectedTasks: Set<number>;
 	taskFilter: string;
 	setTaskFilter: (filter: string) => void;
-	toggleTaskSelection: (taskId: number) => void;
-	handleBulkDownload: () => void;
 }
 
 export const useHomeData = (): UseHomeDataReturn => {
@@ -25,7 +22,6 @@ export const useHomeData = (): UseHomeDataReturn => {
 	const [quizzes, setQuizzes] = useState<Quiz[]>([]);
 	const [tasks, setTasks] = useState<DownloadableTask[]>([]);
 	const [collections, setCollections] = useState<TaskCollection[]>([]);
-	const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
 	const [taskFilter, setTaskFilter] = useState<string>('all');
 
 	useEffect(() => {
@@ -72,22 +68,6 @@ export const useHomeData = (): UseHomeDataReturn => {
 		return tasks.filter(task => task.source === taskFilter);
 	}, [tasks, taskFilter]);
 
-	const toggleTaskSelection = (taskId: number) => {
-		setSelectedTasks(prev => {
-			const next = new Set(prev);
-			if (next.has(taskId)) {
-				next.delete(taskId);
-			} else {
-				next.add(taskId);
-			}
-			return next;
-		});
-	};
-
-	const handleBulkDownload = () => {
-		console.log('Bulk download for tasks:', Array.from(selectedTasks));
-	};
-
 	return {
 		isLoading,
 		error,
@@ -95,10 +75,7 @@ export const useHomeData = (): UseHomeDataReturn => {
 		featuredQuiz,
 		filteredTasks,
 		collections,
-		selectedTasks,
 		taskFilter,
 		setTaskFilter,
-		toggleTaskSelection,
-		handleBulkDownload,
 	};
 };

@@ -29,32 +29,19 @@ class BioGardenController {
 				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
-			// Получаем все активные растения
-			const plants = await BioGardenPlant.findAll({
+			const allPlants = await BioGardenPlant.findAll({
 				where: { is_active: true },
 				order: [['difficulty_level', 'ASC']],
 				raw: true,
 			});
 
-			// Получаем прогресс пользователя
 			const userProgress = await UserBioGardenProgress.findAll({
 				where: { user_id: user.id },
 				raw: true,
-				include: [
-					{
-						model: BioGardenPlant,
-						as: 'plant',
-						attributes: ['growth_stages'],
-					},
-				],
-			});
-			console.log(`Found ${userProgress.length} progress records`);
-			const progressMap = new Map();
-			userProgress.forEach(progress => {
-				progressMap.set(progress.plant_id, progress);
 			});
 
-			// hp_state для визуала: healthy / medium / low / critical / dead
+			const plantedPlantIds = new Set(userProgress.map(p => p.plant_id));
+
 			const getHpState = (hp: number, max: number): string => {
 				if (max <= 0 || hp <= 0) return 'dead';
 				const pct = (hp / max) * 100;
@@ -65,40 +52,56 @@ class BioGardenController {
 				return 'dead';
 			};
 
-			// Форматируем ответ
-			const formatted = plants.map(plant => {
-				const progress = progressMap.get(plant.id);
-				const isUnlocked = !progress
-					? plant.required_experience === 0
-					: progress.is_unlocked;
-				const hp = progress?.health_points ?? 0;
-				const maxHp = progress?.max_health_points ?? 100;
+			// 8 слотов: каждый либо пуст, либо содержит растение с прогрессом
+			const slots = Array.from({ length: 8 }, (_, i) => {
+				const prog = userProgress.find(p => p.slot_index === i);
+				if (!prog) return { slot_index: i, plant: null };
+
+				const plant = allPlants.find(p => p.id === prog.plant_id);
+				if (!plant) return { slot_index: i, plant: null };
+
+				const hp = prog.health_points ?? 0;
+				const maxHp = prog.max_health_points ?? 100;
 
 				return {
-					...plant,
-					is_unlocked: isUnlocked,
-					current_stage: progress?.current_stage || 0,
-					experience_points: progress?.experience_points || 0,
-					health_points: hp,
-					max_health_points: maxHp,
-					hp_state: progress ? getHpState(hp, maxHp) : 'healthy',
-					is_completed: progress?.is_completed || false,
-					planted_at: progress?.planted_at || null,
-					is_wilted: progress?.is_wilted ?? false,
-					revive_sleep_until: progress?.revive_sleep_until ?? null,
+					slot_index: i,
+					plant: {
+						...plant,
+						is_unlocked: prog.is_unlocked,
+						current_stage: prog.current_stage || 0,
+						experience_points: prog.experience_points || 0,
+						health_points: hp,
+						max_health_points: maxHp,
+						hp_state: getHpState(hp, maxHp),
+						is_completed: prog.is_completed || false,
+						planted_at: prog.planted_at || null,
+						is_wilted: prog.is_wilted ?? false,
+						revive_sleep_until: prog.revive_sleep_until ?? null,
+					},
 				};
 			});
 
-			// Рассчитываем общий опыт пользователя
-			let totalExperience = 0;
-			userProgress.forEach(progress => {
-				totalExperience += progress.experience_points;
-			});
+			// Растения, которые ещё не посажены — для выбора при нажатии на пустой горшок
+			const available_plants = allPlants
+				.filter(p => !plantedPlantIds.has(p.id))
+				.map(p => ({
+					id: p.id,
+					name: p.name,
+					scientific_name: p.scientific_name,
+					description: p.description,
+					difficulty_level: p.difficulty_level,
+					growth_stages: p.growth_stages,
+					biology_topics: p.biology_topics,
+					image_url: p.image_url,
+				}));
+
+			const totalExperience = userProgress.reduce((sum, p) => sum + (p.experience_points || 0), 0);
 
 			res.json({
 				success: true,
 				data: {
-					plants: formatted,
+					slots,
+					available_plants,
 					user_coins: user.coins || 0,
 					total_experience: totalExperience,
 				},
@@ -116,82 +119,59 @@ class BioGardenController {
 	async startPlant(req: Request, res: Response) {
 		try {
 			const { plantId } = req.params;
+			const { slotIndex } = req.body as { slotIndex?: number; telegramId?: string | number };
 			const user = await this.resolveUser(req);
 			if (!user) {
 				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
+			if (slotIndex === undefined || slotIndex === null || slotIndex < 0 || slotIndex > 7) {
+				return res.status(400).json({ success: false, message: 'slotIndex должен быть от 0 до 7' });
+			}
+
 			const plant = await BioGardenPlant.findByPk(plantId);
 			if (!plant) {
-				return res.status(404).json({
-					success: false,
-					message: 'Растение не найдено',
-				});
+				return res.status(404).json({ success: false, message: 'Растение не найдено' });
 			}
 
-			// Последовательная разблокировка: растение N можно начать только после предыдущего (по difficulty_level)
-			if (plant.difficulty_level > 1) {
-				const prevPlant = await BioGardenPlant.findOne({
-					where: {
-						difficulty_level: plant.difficulty_level - 1,
-						is_active: true,
-					},
-					raw: true,
-				});
-				if (prevPlant) {
-					const prevProgress = await UserBioGardenProgress.findOne({
-						where: { user_id: user.id, plant_id: prevPlant.id },
-					});
-					if (!prevProgress || !prevProgress.planted_at) {
-						return res.status(400).json({
-							success: false,
-							message: `Сначала начните выращивать предыдущее растение: ${prevPlant.name}`,
-						});
-					}
-				}
-			}
-
-			// Проверяем, есть ли уже прогресс
-			let progress = await UserBioGardenProgress.findOne({
-				where: {
-					user_id: user.id,
-					plant_id: plant.id,
-				},
+			// Слот уже занят?
+			const slotTaken = await UserBioGardenProgress.findOne({
+				where: { user_id: user.id, slot_index: slotIndex },
 			});
-
-			if (!progress) {
-				// Создаем новый прогресс: старт со 2-й стадии и 60 HP
-				progress = await UserBioGardenProgress.create({
-					user_id: user.id,
-					plant_id: plant.id,
-					current_stage: 2,
-					experience_points: 0,
-					health_points: 60,
-					max_health_points: 100,
-					is_unlocked: true,
-					is_completed: false,
-					combo_count: 0,
-					last_practiced_at: null,
-					is_wilted: false,
-					revive_sleep_until: null,
-					last_decay_at: null,
-					planted_at: new Date(),
-				});
-			} else if (progress.is_completed) {
-				return res.status(400).json({
-					success: false,
-					message: 'Это растение уже полностью выращено',
-				});
+			if (slotTaken) {
+				return res.status(400).json({ success: false, message: 'Этот горшок уже занят' });
 			}
+
+			// Растение уже посажено у этого пользователя?
+			const alreadyPlanted = await UserBioGardenProgress.findOne({
+				where: { user_id: user.id, plant_id: plant.id },
+			});
+			if (alreadyPlanted) {
+				return res.status(400).json({ success: false, message: 'Это растение уже посажено' });
+			}
+
+			const progress = await UserBioGardenProgress.create({
+				user_id: user.id,
+				plant_id: plant.id,
+				slot_index: slotIndex,
+				current_stage: 2,
+				experience_points: 0,
+				health_points: 60,
+				max_health_points: 100,
+				is_unlocked: true,
+				is_completed: false,
+				combo_count: 0,
+				last_practiced_at: null,
+				is_wilted: false,
+				revive_sleep_until: null,
+				last_decay_at: null,
+				planted_at: new Date(),
+			});
 
 			res.json({
 				success: true,
 				data: {
-					plant: {
-						id: plant.id,
-						name: plant.name,
-						scientific_name: plant.scientific_name,
-					},
+					plant: { id: plant.id, name: plant.name, scientific_name: plant.scientific_name },
 					progress: {
 						current_stage: progress.current_stage,
 						experience_points: progress.experience_points,
@@ -203,10 +183,7 @@ class BioGardenController {
 			});
 		} catch (error) {
 			console.error('Error starting plant:', error);
-			res.status(500).json({
-				success: false,
-				message: 'Не удалось начать выращивание',
-			});
+			res.status(500).json({ success: false, message: 'Не удалось начать выращивание' });
 		}
 	}
 

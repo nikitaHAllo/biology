@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { User, MaterialSection, MaterialTopic, MaterialFile, Quiz, QuizQuestion, QuizOption, QuizCategory, GeneticScenario, GeneticStep, GeneticOption, VirusCase, VirusClue, VirusSuspect, BioGardenPlant, BioGardenQuestion, BioGardenAnswerOption } from '../../models';
+import { User, MaterialSection, MaterialTopic, MaterialFile, Quiz, QuizQuestion, QuizOption, QuizCategory, GeneticScenario, GeneticStep, GeneticOption, GeneticResult, VirusCase, VirusClue, VirusSuspect, VirusResult, VirusChapter, VirusChapterOption, BioGardenPlant, BioGardenQuestion, BioGardenAnswerOption, UserBioGardenProgress, UserQuizResult } from '../../models';
 import { DownloadableTask, TaskCollection, TaskCollectionItem } from '../../models/DownloadableTask';
 
 const SECRET = process.env.JWT_SECRET || 'dev-only-change-me-in-production';
@@ -32,6 +32,89 @@ class AdminController {
 			return res.json({ success: true, data: { users } });
 		} catch (e) {
 			console.error('Admin getUsers error:', e);
+			return res.status(500).json({ success: false, message: 'Ошибка сервера' });
+		}
+	}
+
+	async getUserStats(req: Request, res: Response) {
+		try {
+			const userId = Number(req.params.id);
+			if (!Number.isInteger(userId) || userId <= 0) {
+				return res.status(400).json({ success: false, message: 'Некорректный id' });
+			}
+
+			const user = await User.findByPk(userId, {
+				attributes: ['id', 'email', 'username', 'telegram_id', 'coins', 'created_at'],
+			});
+			if (!user) return res.status(404).json({ success: false, message: 'Пользователь не найден' });
+
+			const [quizResults, gardenProgress, geneticResults, virusResults] = await Promise.all([
+				UserQuizResult.findAll({
+					where: { user_id: userId },
+					include: [{ model: Quiz, as: 'quiz', attributes: ['title', 'total_questions'] }],
+					order: [['submitted_at', 'DESC']],
+				}),
+				UserBioGardenProgress.findAll({
+					where: { user_id: userId },
+					include: [{ model: BioGardenPlant, as: 'plant', attributes: ['name', 'description'] }],
+					order: [['planted_at', 'DESC']],
+				}),
+				GeneticResult.findAll({
+					where: { user_id: userId },
+					include: [{ model: GeneticScenario, as: 'scenario', attributes: ['title'] }],
+					order: [['created_at', 'DESC']],
+				}),
+				VirusResult.findAll({
+					where: { user_id: userId },
+					include: [{ model: VirusCase, as: 'case', attributes: ['title'] }],
+					order: [['created_at', 'DESC']],
+				}),
+			]);
+
+			return res.json({
+				success: true,
+				data: {
+					user,
+					quiz_results: quizResults.map(r => ({
+						id: r.id,
+						quiz_title: (r.get('quiz') as Quiz | null)?.title ?? '—',
+						total_questions: (r.get('quiz') as Quiz | null)?.total_questions ?? 0,
+						score: r.score,
+						is_passed: r.is_passed,
+						earned_coins: r.earned_coins,
+						submitted_at: r.submitted_at,
+					})),
+					garden_progress: gardenProgress.map(p => ({
+						id: p.id,
+						plant_name: (p.get('plant') as BioGardenPlant | null)?.name ?? '—',
+						current_stage: p.current_stage,
+						experience_points: p.experience_points,
+						is_completed: p.is_completed,
+						is_wilted: p.is_wilted,
+						planted_at: p.planted_at,
+						completed_at: p.completed_at,
+					})),
+					genetic_results: geneticResults.map(r => ({
+						id: r.id,
+						scenario_title: (r.get('scenario') as GeneticScenario | null)?.title ?? '—',
+						score: r.score,
+						is_completed: r.is_completed,
+						coins_earned: r.coins_earned,
+						completed_at: r.completed_at,
+					})),
+					virus_results: virusResults.map(r => ({
+						id: r.id,
+						case_title: (r.get('case') as VirusCase | null)?.title ?? '—',
+						score: r.score,
+						is_completed: r.is_completed,
+						coins_earned: r.coins_earned,
+						clues_used: r.clues_used,
+						completed_at: r.completed_at,
+					})),
+				},
+			});
+		} catch (e) {
+			console.error('Admin getUserStats error:', e);
 			return res.status(500).json({ success: false, message: 'Ошибка сервера' });
 		}
 	}
@@ -754,6 +837,11 @@ class AdminController {
 				include: [
 					{ model: VirusClue, as: 'clues' },
 					{ model: VirusSuspect, as: 'suspects' },
+					{
+						model: VirusChapter,
+						as: 'chapters',
+						include: [{ model: VirusChapterOption, as: 'options' }],
+					},
 				],
 				order: [['order_index', 'ASC'], ['created_at', 'ASC']],
 			});
@@ -761,6 +849,9 @@ class AdminController {
 				const plain = c.get({ plain: true }) as any;
 				plain.clues = (plain.clues ?? []).sort((a: any, b: any) => a.order_index - b.order_index);
 				plain.suspects = (plain.suspects ?? []).sort((a: any, b: any) => a.order_index - b.order_index);
+				plain.chapters = (plain.chapters ?? [])
+					.sort((a: any, b: any) => a.order_index - b.order_index)
+					.map((ch: any) => ({ ...ch, options: (ch.options ?? []).sort((a: any, b: any) => a.order_index - b.order_index) }));
 				return plain;
 			});
 			return res.json({ success: true, data: { cases: sorted } });
@@ -777,12 +868,20 @@ class AdminController {
 				include: [
 					{ model: VirusClue, as: 'clues' },
 					{ model: VirusSuspect, as: 'suspects' },
+					{
+						model: VirusChapter,
+						as: 'chapters',
+						include: [{ model: VirusChapterOption, as: 'options' }],
+					},
 				],
 			});
 			if (!virusCase) return res.status(404).json({ success: false, message: 'Случай не найден' });
 			const plain = virusCase.get({ plain: true }) as any;
 			plain.clues = (plain.clues ?? []).sort((a: any, b: any) => a.order_index - b.order_index);
 			plain.suspects = (plain.suspects ?? []).sort((a: any, b: any) => a.order_index - b.order_index);
+			plain.chapters = (plain.chapters ?? [])
+				.sort((a: any, b: any) => a.order_index - b.order_index)
+				.map((ch: any) => ({ ...ch, options: (ch.options ?? []).sort((a: any, b: any) => a.order_index - b.order_index) }));
 			return res.json({ success: true, data: { case: plain } });
 		} catch (e) {
 			console.error('Admin getVirusCase error:', e);
@@ -792,8 +891,19 @@ class AdminController {
 
 	async createVirusCase(req: Request, res: Response) {
 		try {
-			const { title, description, patient_info, difficulty, coins_reward, order_index, is_active } = req.body;
-			const virusCase = await VirusCase.create({ title, description, patient_info, difficulty, coins_reward, order_index, is_active });
+			const { title, description, patient_info, role_description, success_text, failure_text, difficulty, coins_reward, order_index, is_active } = req.body;
+			const virusCase = await VirusCase.create({
+				title,
+				description: description ?? null,
+				patient_info: patient_info ?? null,
+				role_description: role_description ?? null,
+				success_text: success_text ?? null,
+				failure_text: failure_text ?? null,
+				difficulty: difficulty ?? 'medium',
+				coins_reward: coins_reward ?? 0,
+				order_index: order_index ?? 0,
+				is_active: is_active ?? true,
+			});
 			return res.status(201).json({ success: true, data: { case: virusCase } });
 		} catch (e) {
 			console.error('Admin createVirusCase error:', e);
@@ -804,7 +914,7 @@ class AdminController {
 	async updateVirusCase(req: Request, res: Response) {
 		try {
 			const id = Number(req.params.id);
-			const fields = ['title', 'description', 'patient_info', 'difficulty', 'coins_reward', 'order_index', 'is_active'];
+			const fields = ['title', 'description', 'patient_info', 'role_description', 'success_text', 'failure_text', 'difficulty', 'coins_reward', 'order_index', 'is_active'];
 			const updates: any = {};
 			for (const f of fields) if (req.body[f] !== undefined) updates[f] = req.body[f];
 			await VirusCase.update(updates, { where: { id } });
@@ -905,6 +1015,117 @@ class AdminController {
 		} catch (e) {
 			console.error('Admin deleteVirusSuspect error:', e);
 			return res.status(500).json({ success: false, message: 'Ошибка удаления подозреваемого' });
+		}
+	}
+
+	// ── Virus Chapters ────────────────────────────────────────────────────────
+
+	async createVirusChapter(req: Request, res: Response) {
+		try {
+			const case_id = Number(req.params.caseId);
+			const { title, narrative_text, question_text, order_index } = req.body as {
+				title?: string; narrative_text?: string; question_text?: string; order_index?: number;
+			};
+			if (!title || !narrative_text || !question_text) {
+				return res.status(400).json({ success: false, message: 'title, narrative_text и question_text обязательны' });
+			}
+			const chapter = await VirusChapter.create({
+				case_id, title, narrative_text, question_text,
+				order_index: order_index ?? 0,
+			});
+			return res.status(201).json({ success: true, data: { chapter } });
+		} catch (e) {
+			console.error('Admin createVirusChapter error:', e);
+			return res.status(500).json({ success: false, message: 'Ошибка создания главы' });
+		}
+	}
+
+	async updateVirusChapter(req: Request, res: Response) {
+		try {
+			const id = Number(req.params.id);
+			const { title, narrative_text, question_text, order_index } = req.body as {
+				title?: string; narrative_text?: string; question_text?: string; order_index?: number;
+			};
+			const chapter = await VirusChapter.findByPk(id);
+			if (!chapter) return res.status(404).json({ success: false, message: 'Глава не найдена' });
+			await chapter.update({
+				...(title !== undefined && { title }),
+				...(narrative_text !== undefined && { narrative_text }),
+				...(question_text !== undefined && { question_text }),
+				...(order_index !== undefined && { order_index }),
+			});
+			return res.json({ success: true, data: { chapter } });
+		} catch (e) {
+			console.error('Admin updateVirusChapter error:', e);
+			return res.status(500).json({ success: false, message: 'Ошибка обновления главы' });
+		}
+	}
+
+	async deleteVirusChapter(req: Request, res: Response) {
+		try {
+			const id = Number(req.params.id);
+			await VirusChapterOption.destroy({ where: { chapter_id: id } });
+			await VirusChapter.destroy({ where: { id } });
+			return res.json({ success: true });
+		} catch (e) {
+			console.error('Admin deleteVirusChapter error:', e);
+			return res.status(500).json({ success: false, message: 'Ошибка удаления главы' });
+		}
+	}
+
+	// ── Virus Chapter Options ─────────────────────────────────────────────────
+
+	async createVirusChapterOption(req: Request, res: Response) {
+		try {
+			const chapter_id = Number(req.params.chapterId);
+			const { text, is_correct, consequence_text, order_index } = req.body as {
+				text?: string; is_correct?: boolean; consequence_text?: string; order_index?: number;
+			};
+			if (!text || !consequence_text) {
+				return res.status(400).json({ success: false, message: 'text и consequence_text обязательны' });
+			}
+			const option = await VirusChapterOption.create({
+				chapter_id, text,
+				is_correct: is_correct ?? false,
+				consequence_text,
+				order_index: order_index ?? 0,
+			});
+			return res.status(201).json({ success: true, data: { option } });
+		} catch (e) {
+			console.error('Admin createVirusChapterOption error:', e);
+			return res.status(500).json({ success: false, message: 'Ошибка создания варианта' });
+		}
+	}
+
+	async updateVirusChapterOption(req: Request, res: Response) {
+		try {
+			const id = Number(req.params.id);
+			const { text, is_correct, consequence_text, order_index } = req.body as {
+				text?: string; is_correct?: boolean; consequence_text?: string; order_index?: number;
+			};
+			const option = await VirusChapterOption.findByPk(id);
+			if (!option) return res.status(404).json({ success: false, message: 'Вариант не найден' });
+			await option.update({
+				...(text !== undefined && { text }),
+				...(is_correct !== undefined && { is_correct }),
+				...(consequence_text !== undefined && { consequence_text }),
+				...(order_index !== undefined && { order_index }),
+			});
+			return res.json({ success: true, data: { option } });
+		} catch (e) {
+			console.error('Admin updateVirusChapterOption error:', e);
+			return res.status(500).json({ success: false, message: 'Ошибка обновления варианта' });
+		}
+	}
+
+	async deleteVirusChapterOption(req: Request, res: Response) {
+		try {
+			const id = Number(req.params.id);
+			await VirusChapterOption.destroy({ where: { id } });
+			return res.json({ success: true });
+		} catch (e) {
+			console.error('Admin deleteVirusChapterOption error:', e);
+			return res.status(500).json({ success: false, message: 'Ошибка удаления варианта' });
 		}
 	}
 

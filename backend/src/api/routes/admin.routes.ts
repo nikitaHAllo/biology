@@ -7,6 +7,7 @@ const router = Router();
 router.post('/login', (req, res) => adminController.login(req, res));
 
 router.get('/users', adminAuth, (req, res) => adminController.getUsers(req, res));
+router.get('/users/:id/stats', adminAuth, (req, res) => adminController.getUserStats(req, res));
 
 router.get('/sections', adminAuth, (req, res) => adminController.getSections(req, res));
 router.post('/sections', adminAuth, (req, res) => adminController.createSection(req, res));
@@ -74,6 +75,16 @@ router.delete('/virus/clues/:id', adminAuth, (req, res) => adminController.delet
 router.post('/virus/cases/:caseId/suspects', adminAuth, (req, res) => adminController.createVirusSuspect(req, res));
 router.put('/virus/suspects/:id', adminAuth, (req, res) => adminController.updateVirusSuspect(req, res));
 router.delete('/virus/suspects/:id', adminAuth, (req, res) => adminController.deleteVirusSuspect(req, res));
+
+// Virus Chapters
+router.post('/virus/cases/:caseId/chapters', adminAuth, (req, res) => adminController.createVirusChapter(req, res));
+router.put('/virus/chapters/:id', adminAuth, (req, res) => adminController.updateVirusChapter(req, res));
+router.delete('/virus/chapters/:id', adminAuth, (req, res) => adminController.deleteVirusChapter(req, res));
+
+// Virus Chapter Options
+router.post('/virus/chapters/:chapterId/options', adminAuth, (req, res) => adminController.createVirusChapterOption(req, res));
+router.put('/virus/chapter-options/:id', adminAuth, (req, res) => adminController.updateVirusChapterOption(req, res));
+router.delete('/virus/chapter-options/:id', adminAuth, (req, res) => adminController.deleteVirusChapterOption(req, res));
 
 // Quiz categories
 router.get('/quiz-categories', adminAuth, (req, res) => adminController.getQuizCategories(req, res));

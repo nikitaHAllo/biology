@@ -1,11 +1,11 @@
-import { Suspense, useRef } from 'react';
+import { Suspense, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Stars } from '@react-three/drei';
+import { OrbitControls, Stars, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Plant3D } from './Plant3D';
-import type { BioGardenPlant } from '../../models/biogarden';
+import type { PlantSlot } from '../../models/biogarden';
 
-// Позиции горшков: 2 ряда по 4 растения (8 всего)
+// Позиции горшков: 2 ряда по 4 (8 всего)
 const PLANT_POSITIONS: [number, number, number][] = [
 	[-3.6, 0, -1.65],
 	[-1.2, 0, -1.65],
@@ -51,12 +51,10 @@ const GardenFloor = () => (
 			<planeGeometry args={[16, 12]} />
 			<meshStandardMaterial color='#1a4d1a' roughness={1} />
 		</mesh>
-		{/* Центральная дорожка между рядами */}
 		<mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.595, 0]}>
 			<planeGeometry args={[16, 0.9]} />
 			<meshStandardMaterial color='#7a6848' roughness={1} />
 		</mesh>
-		{/* Поперечная дорожка */}
 		<mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.594, 0]}>
 			<planeGeometry args={[1.0, 12]} />
 			<meshStandardMaterial color='#8b7355' roughness={1} />
@@ -76,8 +74,8 @@ const Fence = () => {
 						<meshStandardMaterial color='#a07850' roughness={0.9} />
 					</mesh>
 					{i < posts.length - 1 && (
-						<mesh position={[(x + posts[i + 1]) / 2, -0.18, -5.2]}>
-							<boxGeometry args={[posts[i + 1] - x, 0.07, 0.06]} />
+						<mesh position={[(x + posts[i + 1]!) / 2, -0.18, -5.2]}>
+							<boxGeometry args={[posts[i + 1]! - x, 0.07, 0.06]} />
 							<meshStandardMaterial color='#a07850' roughness={0.9} />
 						</mesh>
 					)}
@@ -87,13 +85,100 @@ const Fence = () => {
 	);
 };
 
-// Контроллер камеры — плавное наведение на выбранное растение
+// Пустой горшок (без растения)
+interface EmptyPot3DProps {
+	position: [number, number, number];
+	slotIndex: number;
+	isSelected: boolean;
+	onClick: (slotIndex: number) => void;
+}
+
+const EmptyPot3D = ({ position, slotIndex, isSelected, onClick }: EmptyPot3DProps) => {
+	const groupRef = useRef<THREE.Group>(null);
+	const [hovered, setHovered] = useState(false);
+
+	useFrame(state => {
+		if (!groupRef.current) return;
+		const t = state.clock.elapsedTime;
+		groupRef.current.position.y = position[1] + Math.sin(t * 0.5 + slotIndex * 1.2) * 0.02;
+	});
+
+	const potColor = hovered ? '#b07844' : '#8b6040';
+
+	return (
+		<group
+			ref={groupRef}
+			position={position}
+			onClick={e => { e.stopPropagation(); onClick(slotIndex); }}
+			onPointerOver={e => {
+				e.stopPropagation();
+				setHovered(true);
+				document.body.style.cursor = 'pointer';
+			}}
+			onPointerOut={() => {
+				setHovered(false);
+				document.body.style.cursor = 'default';
+			}}
+		>
+			{/* Кольцо выделения */}
+			{isSelected && (
+				<mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.58, 0]}>
+					<ringGeometry args={[0.46, 0.58, 32]} />
+					<meshBasicMaterial color='#fbbf24' transparent opacity={0.85} />
+				</mesh>
+			)}
+
+			{/* Горшок */}
+			<mesh position={[0, -0.31, 0]} castShadow receiveShadow>
+				<cylinderGeometry args={[0.32, 0.22, 0.46, 10]} />
+				<meshStandardMaterial
+					color={potColor}
+					roughness={0.9}
+					emissive={isSelected ? '#7c3aed' : '#000000'}
+					emissiveIntensity={isSelected ? 0.15 : 0}
+				/>
+			</mesh>
+			<mesh position={[0, -0.07, 0]}>
+				<torusGeometry args={[0.33, 0.04, 6, 14]} />
+				<meshStandardMaterial color={potColor} roughness={0.9} />
+			</mesh>
+			{/* Земля */}
+			<mesh position={[0, -0.08, 0]}>
+				<cylinderGeometry args={[0.29, 0.29, 0.07, 10]} />
+				<meshStandardMaterial color='#3d2b1a' roughness={1} />
+			</mesh>
+
+			{/* Подпись */}
+			<Html position={[0, 0.28, 0]} center zIndexRange={[1, 0]} style={{ pointerEvents: 'none' }}>
+				<div
+					style={{
+						background: 'rgba(0,0,0,0.72)',
+						borderRadius: 8,
+						padding: '3px 8px',
+						border: `1px solid ${hovered ? 'rgba(74,222,128,0.5)' : 'rgba(255,255,255,0.12)'}`,
+						color: hovered ? '#4ade80' : 'rgba(255,255,255,0.45)',
+						fontSize: 11,
+						fontWeight: 700,
+						whiteSpace: 'nowrap',
+						fontFamily: 'system-ui, sans-serif',
+						textAlign: 'center',
+						userSelect: 'none',
+						transition: 'color 0.15s',
+					}}
+				>
+					+ Посадить
+				</div>
+			</Html>
+		</group>
+	);
+};
+
+// Контроллер камеры — плавное наведение
 interface CameraControllerProps {
 	targetPos: [number, number, number] | null;
 }
 
 const CameraController = ({ targetPos }: CameraControllerProps) => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const controlsRef = useRef<any>(null);
 	const smoothTarget = useRef(new THREE.Vector3(0, 0, 0));
 
@@ -120,24 +205,19 @@ const CameraController = ({ targetPos }: CameraControllerProps) => {
 };
 
 interface BioGardenSceneProps {
-	plants: BioGardenPlant[];
-	selectedPlantId: number | null;
-	onPlantSelect: (plant: BioGardenPlant) => void;
-	onPlantHover: (plant: BioGardenPlant) => void;
-	onPlantHoverEnd: () => void;
+	slots: PlantSlot[];
+	selectedSlotIndex: number | null;
+	onSlotClick: (slotIndex: number) => void;
 	onDeselect: () => void;
 }
 
 export const BioGardenScene = ({
-	plants,
-	selectedPlantId,
-	onPlantSelect,
-	onPlantHover,
-	onPlantHoverEnd,
+	slots,
+	selectedSlotIndex,
+	onSlotClick,
 	onDeselect,
 }: BioGardenSceneProps) => {
-	const selectedIdx = plants.findIndex(p => p.id === selectedPlantId);
-	const selectedPosition = selectedIdx >= 0 ? PLANT_POSITIONS[selectedIdx] ?? null : null;
+	const selectedPosition = selectedSlotIndex != null ? PLANT_POSITIONS[selectedSlotIndex] ?? null : null;
 
 	return (
 		<Canvas
@@ -166,32 +246,44 @@ export const BioGardenScene = ({
 				<pointLight position={[-3.5, 2, 0]} intensity={0.25} color='#4ade80' />
 				<pointLight position={[3.5, 2, 0]} intensity={0.25} color='#84cc16' />
 
-				{/* Звёзды */}
 				<Stars radius={65} depth={45} count={2500} factor={3} saturation={0.4} fade speed={0.4} />
 
-				{/* Пол и декор */}
 				<GardenFloor />
 				<PlanterBed z={-1.65} />
 				<PlanterBed z={1.65} />
 				<Fence />
 
-				{/* Растения */}
-				{plants.slice(0, 8).map((plant, index) => (
-					<Plant3D
-						key={plant.id}
-						plant={plant}
-						position={PLANT_POSITIONS[index] ?? [0, 0, 0]}
-						isSelected={selectedPlantId === plant.id}
-						onSelect={onPlantSelect}
-						onHover={onPlantHover}
-						onHoverEnd={onPlantHoverEnd}
-					/>
-				))}
+				{/* 8 слотов: занятые → Plant3D, пустые → EmptyPot3D */}
+				{Array.from({ length: 8 }, (_, i) => {
+					const slot = slots[i];
+					const position = PLANT_POSITIONS[i] ?? [0, 0, 0];
+					const isSelected = selectedSlotIndex === i;
 
-				{/* Туман для глубины */}
+					if (slot?.plant) {
+						return (
+							<Plant3D
+								key={slot.plant.id}
+								plant={slot.plant}
+								position={position}
+								isSelected={isSelected}
+								onSelect={() => onSlotClick(i)}
+								onHover={() => {}}
+								onHoverEnd={() => {}}
+							/>
+						);
+					}
+					return (
+						<EmptyPot3D
+							key={`empty-${i}`}
+							position={position}
+							slotIndex={i}
+							isSelected={isSelected}
+							onClick={onSlotClick}
+						/>
+					);
+				})}
+
 				<fog attach='fog' args={['#080d1a', 11, 24]} />
-
-				{/* Управление камерой */}
 				<CameraController targetPos={selectedPosition} />
 			</Suspense>
 		</Canvas>

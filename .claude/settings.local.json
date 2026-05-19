@@ -10,7 +10,8 @@
       "Bash(powershell -Command \"\\(Get-Content 'c:\\\\projects\\\\biology\\\\frontend\\\\src\\\\App.tsx' | Measure-Object -Line\\).Lines\")",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
       "PowerShell(cd c:\\\\projects\\\\biology\\\\backend; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"users.controller\" })",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "PowerShell(cd c:\\\\projects\\\\biology\\\\backend; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch 'server.ts' } | Select-Object -First 20)"
     ]
   }
 }

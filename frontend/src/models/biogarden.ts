@@ -106,8 +106,25 @@ export interface TopPlant {
 }
 
 // Response interfaces
+export interface AvailablePlant {
+	id: number;
+	name: string;
+	scientific_name: string;
+	description: string;
+	difficulty_level: number;
+	growth_stages: number;
+	biology_topics: string[];
+	image_url: string;
+}
+
+export interface PlantSlot {
+	slot_index: number;
+	plant: BioGardenPlant | null;
+}
+
 export interface PlantsListResponse {
-	plants: BioGardenPlant[];
+	slots: PlantSlot[];
+	available_plants: AvailablePlant[];
 	user_coins: number;
 	total_experience: number;
 }

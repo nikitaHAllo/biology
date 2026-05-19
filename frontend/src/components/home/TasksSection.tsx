@@ -7,7 +7,6 @@ import {
   Stack,
   Card,
   Badge,
-  Checkbox,
   Button,
   Divider,
   SimpleGrid,
@@ -28,21 +27,15 @@ interface Collection {
 interface TasksSectionProps {
   tasks: DownloadableTask[];
   collections: Collection[];
-  selected: Set<number>;
   taskFilter: string;
   setTaskFilter: (value: string) => void;
-  toggle: (id: number) => void;
-  bulk: () => void;
 }
 
 export function TasksSection({
   tasks,
   collections,
-  selected,
   taskFilter,
   setTaskFilter,
-  toggle,
-  bulk,
 }: TasksSectionProps) {
   return (
     <section>
@@ -105,37 +98,21 @@ export function TasksSection({
                 )}
               </div>
 
-              <Stack gap="xs" align="flex-end" style={{ flexShrink: 0 }}>
-                <Checkbox
-                  label="В пакет"
-                  checked={selected.has(task.id)}
-                  onChange={() => toggle(task.id)}
-                />
-                <Button
-                  size="xs"
-                  variant="light"
-                  component="a"
-                  href={task.file_url}
-                  target="_blank"
-                >
-                  Скачать
-                </Button>
-              </Stack>
+              <Button
+                size="xs"
+                variant="light"
+                component="a"
+                href={task.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ flexShrink: 0 }}
+              >
+                Скачать
+              </Button>
             </Group>
           </Card>
         ))}
       </Stack>
-
-      <Group justify="space-between" mt="md">
-        <Button
-          leftSection={<IconDownload size={16} />}
-          color="teal"
-          onClick={bulk}
-          disabled={selected.size === 0}
-        >
-          Скачать одним файлом ({selected.size})
-        </Button>
-      </Group>
 
       <Divider my="lg" label="Готовые подборки" />
 

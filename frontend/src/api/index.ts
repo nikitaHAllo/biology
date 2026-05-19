@@ -36,7 +36,7 @@ import type {
 	WaterPlantResponse,
 } from '../models/biogarden';
 import type { GeneticScenario } from '../models/genetics';
-import type { VirusCase } from '../models/virus';
+import type { VirusCase, SubmitAnswerResponse, CompleteVirusCaseResponse } from '../models/virus';
 import { clearAuthToken, getAuthToken, getRefreshToken, setAuthToken, setRefreshToken } from '../lib/authStorage';
 
 const API_BASE_URL =
@@ -275,12 +275,13 @@ class ApiService {
 	}
 
 	async startPlant(
-		telegramId: number,
+		telegramId: number | undefined,
 		plantId: number,
+		slotIndex: number,
 	): Promise<StartPlantResponse> {
-		const response = await this.api.post(`/biogarden/plants/${plantId}/start`, {
-			telegramId,
-		});
+		const body: Record<string, unknown> = { slotIndex };
+		if (telegramId && !isNaN(telegramId)) body.telegramId = telegramId;
+		const response = await this.api.post(`/biogarden/plants/${plantId}/start`, body);
 		return response.data.data;
 	}
 
@@ -393,8 +394,9 @@ class ApiService {
 	}
 
 	// ── Virus ────────────────────────────────────────────────────────────────
-	async getVirusCases(): Promise<{ cases: VirusCase[] }> {
-		const response = await this.api.get('/virus/cases');
+	async getVirusCases(telegramId?: number): Promise<{ cases: VirusCase[] }> {
+		const params = telegramId ? { telegramId } : {};
+		const response = await this.api.get('/virus/cases', { params });
 		return response.data.data;
 	}
 
@@ -403,13 +405,15 @@ class ApiService {
 		return response.data.data;
 	}
 
-	async guessVirusSuspect(caseId: number, suspectId: number): Promise<{ is_correct: boolean; description: string | null }> {
-		const response = await this.api.post(`/virus/cases/${caseId}/guess`, { suspect_id: suspectId });
+	async submitVirusAnswer(caseId: number, chapterId: number, optionId: number): Promise<SubmitAnswerResponse> {
+		const response = await this.api.post(`/virus/cases/${caseId}/chapters/${chapterId}/answer`, { optionId });
 		return response.data.data;
 	}
 
-	async completeVirusCase(caseId: number, cluesUsed: number): Promise<{ coins_earned: number; score: number }> {
-		const response = await this.api.post(`/virus/cases/${caseId}/complete`, { clues_used: cluesUsed });
+	async completeVirusCase(caseId: number, correctAnswers: number, totalChapters: number, telegramId?: number): Promise<CompleteVirusCaseResponse> {
+		const body: Record<string, unknown> = { correct_answers: correctAnswers, total_chapters: totalChapters };
+		if (telegramId) body.telegramId = telegramId;
+		const response = await this.api.post(`/virus/cases/${caseId}/complete`, body);
 		return response.data.data;
 	}
 }
