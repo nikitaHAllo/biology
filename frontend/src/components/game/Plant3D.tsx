@@ -36,8 +36,6 @@ export const Plant3D = ({
 
 	const palette = PLANT_PALETTE[plant.id] ?? PLANT_PALETTE[1];
 	const stageRatio = plant.growth_stages > 0 ? plant.current_stage / plant.growth_stages : 0;
-	const healthRatio =
-		plant.max_health_points > 0 ? plant.health_points / plant.max_health_points : 1;
 
 	const stemHeight = 0.15 + stageRatio * 1.4;
 	const leafScale = 0.07 + stageRatio * 0.3;

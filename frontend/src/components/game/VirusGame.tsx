@@ -4,7 +4,7 @@ import type {
 	VirusCase,
 	VirusChapter,
 	VirusChapterOption,
-	SubmitAnswerResponse,
+	VirusSubmitAnswerResponse,
 	CompleteVirusCaseResponse,
 } from '../../models/virus';
 
@@ -236,7 +236,7 @@ function GameScreen({ virusCase, onBack }: { virusCase: VirusCase; onBack: () =>
     if (!currentChapter || state.submitting) return;
     setState(s => s ? { ...s, submitting: true } : s);
     try {
-      const result: SubmitAnswerResponse = await apiService.submitVirusAnswer(
+      const result: VirusSubmitAnswerResponse  = await apiService.submitVirusAnswer(
         activeCase.id,
         currentChapter.id,
         option.id,
