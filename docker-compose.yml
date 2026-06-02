@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+
+  # ── База данных ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-biology}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-biology}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-biology} -d ${DB_NAME:-biology}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend API ────────────────────────────────────────────────────────────
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${DB_USER:-biology}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-biology}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      BOT_TOKEN: ${BOT_TOKEN}
+      FRONTEND_URL: ${FRONTEND_URL}
+      ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:-}
+      ASSIGNMENT_PRICE: ${ASSIGNMENT_PRICE:-10}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-}
+      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-БиоЛаб}
+    networks:
+      - internal
+
+  # ── Frontend (Telegram Mini App) ───────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${FRONTEND_URL}/api
+    restart: unless-stopped
+    networks:
+      - internal
+
+  # ── Admin panel ────────────────────────────────────────────────────────────
+  admin:
+    build:
+      context: ./ADMIN
+      args:
+        VITE_API_URL: ${FRONTEND_URL}/api
+    restart: unless-stopped
+    networks:
+      - internal
+
+  # ── Nginx (reverse proxy + SSL) ────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+      - admin
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+
+networks:
+  internal:
+    driver: bridge

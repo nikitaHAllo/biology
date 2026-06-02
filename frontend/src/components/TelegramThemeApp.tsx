@@ -1,17 +1,17 @@
-import React, { type ReactNode } from 'react';
-import { useTelegram } from '../hooks/useTelegram';
+import React, { type ReactNode } from "react";
+import { useTelegram } from "../hooks/useTelegram";
 
 interface TelegramThemeAppProps {
-	children: (colorScheme: 'light' | 'dark') => ReactNode;
+  children: (colorScheme: "light" | "dark") => ReactNode;
 }
 
 export const TelegramThemeApp: React.FC<TelegramThemeAppProps> = ({
-	children,
+  children,
 }) => {
-	const { colorScheme, isLoading } = useTelegram();
+  const { colorScheme, isLoading } = useTelegram();
 
-	// Пока загружается Telegram, используем тёмную тему по умолчанию
-	const currentColorScheme = isLoading ? 'dark' : colorScheme;
+  // Пока загружается Telegram, используем тёмную тему по умолчанию
+  const currentColorScheme = isLoading ? "dark" : colorScheme;
 
-	return <>{children(currentColorScheme)}</>;
+  return <>{children(currentColorScheme)}</>;
 };
