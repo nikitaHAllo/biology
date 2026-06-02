@@ -19,7 +19,11 @@ app.use(
       const isDevTunnel =
         /^https:\/\/[a-z0-9]+-5173\.euw\.devtunnels\.ms$/.test(origin);
       const isLocalhost = origin.startsWith("http://localhost");
-      if (isDevTunnel || isLocalhost || origin === envUrl) {
+      const isYourDomain =
+        origin === "https://xn--80abvylehc.xn--p1ai" ||
+        origin === "https://admin.xn--80abvylehc.xn--p1ai";
+
+      if (isDevTunnel || isLocalhost || origin === envUrl || isYourDomain) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: origin not allowed — ${origin}`));
