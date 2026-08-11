@@ -55,6 +55,20 @@ import {
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ?? "http://localhost:3000/api";
 
+export interface OpenAnswerData {
+  id: number;
+  user_id: number;
+  question_id: number;
+  quiz_id: number;
+  answer_text: string;
+  review_status: 'not_requested' | 'pending' | 'reviewed';
+  teacher_comment: string | null;
+  score: number | null;
+  repcoins_spent: number;
+  submitted_at: string;
+  reviewed_at: string | null;
+}
+
 export interface AuthUser {
   id: number;
   email: string | null;
@@ -285,6 +299,24 @@ class ApiService {
       payload,
     );
     return response.data.data;
+  }
+
+  async submitOpenAnswer(questionId: number, quizId: number, answerText: string) {
+    const response = await this.api.post(`/quizzes/questions/${questionId}/open-answer`, {
+      answer_text: answerText,
+      quiz_id: quizId,
+    });
+    return response.data.data as { answer: OpenAnswerData };
+  }
+
+  async getOpenAnswer(questionId: number) {
+    const response = await this.api.get(`/quizzes/questions/${questionId}/open-answer`);
+    return response.data.data as { answer: OpenAnswerData | null };
+  }
+
+  async requestOpenAnswerReview(answerId: number) {
+    const response = await this.api.post(`/quizzes/open-answers/${answerId}/request-review`);
+    return response.data.data as { answer: OpenAnswerData; coins_left: number; review_cost: number };
   }
 
   async getPlantsList(

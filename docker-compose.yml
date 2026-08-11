@@ -40,7 +40,7 @@ services:
       ASSIGNMENT_PRICE: ${ASSIGNMENT_PRICE:-10}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-}
-      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-БиоЛаб}
+      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-БиоСтарт}
     networks:
       - internal
 

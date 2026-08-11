@@ -20,28 +20,40 @@ function PlantForm({ initial, onSave, onCancel }: {
   onSave: (data: any) => Promise<void>;
   onCancel: () => void;
 }) {
+  const initUrls = (): string[] => {
+    if (initial?.image_urls && initial.image_urls.length > 0) return [...initial.image_urls];
+    if (initial?.image_url) return [initial.image_url];
+    return [''];
+  };
   const [form, setForm] = useState({
     name: initial?.name ?? '',
     scientific_name: initial?.scientific_name ?? '',
     description: initial?.description ?? '',
-    image_url: initial?.image_url ?? '',
     growth_stages: String(initial?.growth_stages ?? 5),
     required_experience: String(initial?.required_experience ?? 0),
     difficulty_level: String(initial?.difficulty_level ?? 1),
     biology_topics: (initial?.biology_topics ?? []).join(', '),
     is_active: initial?.is_active ?? true,
   });
+  const [imageUrls, setImageUrls] = useState<string[]>(initUrls);
   const [saving, setSaving] = useState(false);
   const f = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(p => ({ ...p, [key]: e.target.value }));
+
+  const setUrl = (i: number, val: string) => setImageUrls(prev => prev.map((u, idx) => idx === i ? val : u));
+  const addUrl = () => setImageUrls(prev => [...prev, '']);
+  const removeUrl = (i: number) => setImageUrls(prev => prev.filter((_, idx) => idx !== i));
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.scientific_name.trim()) return;
     setSaving(true);
     try {
+      const urls = imageUrls.map(u => u.trim()).filter(Boolean);
       await onSave({
         name: form.name, scientific_name: form.scientific_name,
-        description: form.description, image_url: form.image_url || null,
+        description: form.description,
+        image_urls: urls,
+        image_url: urls[0] ?? null,
         growth_stages: Number(form.growth_stages),
         required_experience: Number(form.required_experience),
         difficulty_level: Number(form.difficulty_level),
@@ -68,11 +80,33 @@ function PlantForm({ initial, onSave, onCancel }: {
         <textarea value={form.description} onChange={f('description')} style={{ ...inputSt, minHeight: 100, resize: 'vertical' }} />
       </div>
       <div style={fieldWrap}>
-        <label style={labelSt}>URL изображения</label>
-        <input value={form.image_url} onChange={f('image_url')} placeholder="https://..." style={inputSt} />
-        {form.image_url && (
-          <img src={form.image_url} alt="" style={{ marginTop: 6, maxHeight: 80, maxWidth: 120, borderRadius: 4, objectFit: 'cover', border: '1px solid #e5e7eb' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-        )}
+        <label style={labelSt}>Изображения растения</label>
+        {imageUrls.map((url, i) => (
+          <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 8 }}>
+            <div style={{ flex: 1 }}>
+              <input
+                value={url}
+                onChange={e => setUrl(i, e.target.value)}
+                placeholder={`URL изображения ${i + 1}`}
+                style={inputSt}
+              />
+              {url.trim() && (
+                <img
+                  src={url.trim()}
+                  alt=""
+                  style={{ marginTop: 4, maxHeight: 72, maxWidth: 108, borderRadius: 4, objectFit: 'cover', border: '1px solid #e5e7eb' }}
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
+            </div>
+            {imageUrls.length > 1 && (
+              <button onClick={() => removeUrl(i)} style={{ ...smallBtn, color: '#ef4444', marginTop: 4 }} title="Удалить">✕</button>
+            )}
+          </div>
+        ))}
+        <button onClick={addUrl} style={{ fontSize: 12, color: '#2563eb', background: 'none', border: '1px dashed #93c5fd', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
+          + Добавить изображение
+        </button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         <div style={fieldWrap}>

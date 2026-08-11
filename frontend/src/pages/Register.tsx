@@ -98,7 +98,7 @@ const Register: React.FC = () => {
 				>
 					<IconLeaf size={56} color='#6ee7b7' style={{ marginBottom: 20 }} />
 					<Title order={1} c='white' mb={6} style={{ fontSize: 34, lineHeight: 1.15 }}>
-						БиоЛаб
+						БиоСтарт
 					</Title>
 					<Text c='green.3' size='md' mb={36} style={{ lineHeight: 1.5 }}>
 						Платформа для подготовки к ЕГЭ по биологии
@@ -130,7 +130,7 @@ const Register: React.FC = () => {
 					<Box hiddenFrom='sm' style={{ textAlign: 'center', marginBottom: 28 }}>
 						<IconLeaf size={44} color='var(--mantine-color-teal-6)' />
 						<Title order={2} c='dark.7' mt={8}>
-							БиоЛаб
+							БиоСтарт
 						</Title>
 					</Box>
 
@@ -138,7 +138,7 @@ const Register: React.FC = () => {
 						Создать аккаунт
 					</Title>
 					<Text c='dimmed' size='sm' mb={32}>
-						Присоединяйтесь к платформе БиоЛаб
+						Присоединяйтесь к платформе БиоСтарт
 					</Text>
 
 					<form onSubmit={handleSubmit}>

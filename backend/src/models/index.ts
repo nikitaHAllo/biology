@@ -28,6 +28,7 @@ import {
 import { UserMaterialAccess } from './UserMaterialAccess';
 import { GeneticScenario, GeneticStep, GeneticOption, GeneticResult } from './Genetics';
 import { VirusCase, VirusClue, VirusSuspect, VirusResult, VirusChapter, VirusChapterOption } from './Virus';
+import { OpenAnswer } from './OpenAnswer';
 
 // Определение связей - ВАЖНО: правильный порядок и настройки
 User.hasMany(WalletTransaction, { foreignKey: 'user_id', as: 'transactions' });
@@ -267,6 +268,11 @@ UserBioGardenAttempt.belongsTo(BioGardenQuestion, {
 	as: 'question',
 });
 
+User.hasMany(OpenAnswer, { foreignKey: 'user_id', as: 'openAnswers' });
+OpenAnswer.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+QuizQuestion.hasMany(OpenAnswer, { foreignKey: 'question_id', as: 'openAnswers' });
+OpenAnswer.belongsTo(QuizQuestion, { foreignKey: 'question_id', as: 'question' });
+
 export {
 	User,
 	WalletTransaction,
@@ -307,5 +313,6 @@ export {
 	VirusResult,
 	VirusChapter,
 	VirusChapterOption,
+	OpenAnswer,
 	sequelize,
 };

@@ -8,8 +8,9 @@ import QuizzesPage from './pages/QuizzesPage';
 import GeneticsPage from './pages/GeneticsPage';
 import VirusPage from './pages/VirusPage';
 import BioGardenPage from './pages/BioGardenPage';
+import OpenAnswersPage from './pages/OpenAnswersPage';
 
-type Page = 'users' | 'content' | 'tasks' | 'quizzes' | 'genetics' | 'virus' | 'biogarden';
+type Page = 'users' | 'content' | 'tasks' | 'quizzes' | 'genetics' | 'virus' | 'biogarden' | 'open-answers';
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(auth.isLoggedIn());
@@ -75,6 +76,12 @@ export default function App() {
           >
             🌱 Биосадовник
           </button>
+          <button
+            className={page === 'open-answers' ? 'active' : ''}
+            onClick={() => setPage('open-answers')}
+          >
+            📝 Проверка ответов
+          </button>
         </nav>
         <div className="sidebar-footer">
           <button onClick={logout}>Выйти</button>
@@ -89,6 +96,7 @@ export default function App() {
         {page === 'genetics' && <GeneticsPage />}
         {page === 'virus' && <VirusPage />}
         {page === 'biogarden' && <BioGardenPage />}
+        {page === 'open-answers' && <OpenAnswersPage />}
       </main>
     </div>
   );

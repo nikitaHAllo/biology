@@ -264,6 +264,7 @@ class QuizzesController {
 							points: question.points,
 							order: question.order_index,
 							timer_seconds: question.timer_seconds,
+							image_url: question.image_url ?? null,
 						};
 					}),
 			};

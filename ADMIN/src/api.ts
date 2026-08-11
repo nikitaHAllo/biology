@@ -149,11 +149,12 @@ export interface AdminQuizQuestion {
   id: number;
   quiz_id: number;
   question_text: string;
-  question_type: 'single_choice' | 'multiple_choice' | 'true_false';
+  question_type: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended';
   order_index: number;
   points: number;
   timer_seconds: number | null;
   explanation: string | null;
+  image_url: string | null;
   options?: AdminQuizOption[];
 }
 
@@ -234,6 +235,7 @@ export interface AdminBioGardenPlant {
   description: string;
   scientific_name: string;
   image_url: string | null;
+  image_urls: string[];
   growth_stages: number;
   required_experience: number;
   biology_topics: string[];
@@ -297,9 +299,32 @@ export interface AdminVirusCase {
   chapters?: AdminVirusChapter[];
 }
 
+export interface AdminOpenAnswer {
+  id: number;
+  user_id: number;
+  question_id: number;
+  quiz_id: number;
+  answer_text: string;
+  review_status: 'not_requested' | 'pending' | 'reviewed';
+  teacher_comment: string | null;
+  score: number | null;
+  repcoins_spent: number;
+  submitted_at: string;
+  reviewed_at: string | null;
+  user?: { id: number; username: string | null; telegram_id: number | null; email: string | null };
+  question?: { id: number; question_text: string; quiz_id: number };
+}
+
 export const api = {
   login: (password: string) =>
     req<{ token: string }>('POST', '/login', { password }),
+
+  // Open answers
+  getOpenAnswers: () =>
+    req<{ answers: AdminOpenAnswer[] }>('GET', '/open-answers'),
+
+  reviewOpenAnswer: (id: number, body: { score: number; teacher_comment?: string }) =>
+    req<{ answer: AdminOpenAnswer }>('PUT', `/open-answers/${id}/review`, body),
 
   getUsers: () =>
     req<{ users: AdminUser[] }>('GET', '/users'),
@@ -319,11 +344,17 @@ export const api = {
   createTopic: (body: { section_id: number; title: string; slug: string; description?: string; price_repcoins?: number; is_default_unlocked?: boolean; order_index?: number }) =>
     req('POST', '/topics', body),
 
+  updateTopic: (id: number, body: Partial<{ title: string; slug: string; description: string | null; price_repcoins: number; is_default_unlocked: boolean; order_index: number }>) =>
+    req('PUT', `/topics/${id}`, body),
+
   deleteTopic: (id: number) =>
     req('DELETE', `/topics/${id}`),
 
   createFile: (body: { topic_id: number; name: string; file_url: string; file_type?: string; file_size?: number }) =>
     req('POST', '/files', body),
+
+  updateFile: (id: number, body: Partial<{ name: string; file_url: string; file_type: string }>) =>
+    req('PUT', `/files/${id}`, body),
 
   deleteFile: (id: number) =>
     req('DELETE', `/files/${id}`),
@@ -386,10 +417,10 @@ export const api = {
     req('DELETE', `/quizzes/${id}`),
 
   // Questions
-  createQuestion: (quizId: number, body: { question_text: string; question_type: string; points?: number; timer_seconds?: number | null; explanation?: string; order_index?: number }) =>
+  createQuestion: (quizId: number, body: { question_text: string; question_type: string; points?: number; timer_seconds?: number | null; explanation?: string; order_index?: number; image_url?: string | null }) =>
     req<{ question: AdminQuizQuestion }>('POST', `/quizzes/${quizId}/questions`, body),
 
-  updateQuestion: (id: number, body: Partial<{ question_text: string; question_type: string; points: number; timer_seconds: number | null; explanation: string | null; order_index: number }>) =>
+  updateQuestion: (id: number, body: Partial<{ question_text: string; question_type: string; points: number; timer_seconds: number | null; explanation: string | null; order_index: number; image_url: string | null }>) =>
     req<{ question: AdminQuizQuestion }>('PUT', `/questions/${id}`, body),
 
   deleteQuestion: (id: number) =>
@@ -500,10 +531,10 @@ export const api = {
   getBioGardenPlant: (id: number) =>
     req<{ plant: AdminBioGardenPlant }>('GET', `/biogarden/plants/${id}`),
 
-  createBioGardenPlant: (body: { name: string; description: string; scientific_name: string; image_url?: string; growth_stages?: number; required_experience?: number; biology_topics?: string[]; difficulty_level?: number; is_active?: boolean }) =>
+  createBioGardenPlant: (body: { name: string; description: string; scientific_name: string; image_url?: string; image_urls?: string[]; growth_stages?: number; required_experience?: number; biology_topics?: string[]; difficulty_level?: number; is_active?: boolean }) =>
     req<{ plant: AdminBioGardenPlant }>('POST', '/biogarden/plants', body),
 
-  updateBioGardenPlant: (id: number, body: Partial<{ name: string; description: string; scientific_name: string; image_url: string | null; growth_stages: number; required_experience: number; biology_topics: string[]; difficulty_level: number; is_active: boolean }>) =>
+  updateBioGardenPlant: (id: number, body: Partial<{ name: string; description: string; scientific_name: string; image_url: string | null; image_urls: string[]; growth_stages: number; required_experience: number; biology_topics: string[]; difficulty_level: number; is_active: boolean }>) =>
     req<{ plant: AdminBioGardenPlant }>('PUT', `/biogarden/plants/${id}`, body),
 
   deleteBioGardenPlant: (id: number) =>

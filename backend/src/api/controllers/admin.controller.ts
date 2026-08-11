@@ -200,6 +200,29 @@ class AdminController {
 		}
 	}
 
+	async updateTopic(req: Request, res: Response) {
+		try {
+			const id = Number(req.params.id);
+			const { title, slug, description, price_repcoins, is_default_unlocked, order_index } = req.body as {
+				title?: string; slug?: string; description?: string;
+				price_repcoins?: number; is_default_unlocked?: boolean; order_index?: number;
+			};
+			const topic = await MaterialTopic.findByPk(id);
+			if (!topic) return res.status(404).json({ success: false, message: 'Тема не найдена' });
+			if (title !== undefined) topic.title = title;
+			if (slug !== undefined) topic.slug = slug;
+			if (description !== undefined) topic.description = description;
+			if (price_repcoins !== undefined) topic.price_repcoins = price_repcoins;
+			if (is_default_unlocked !== undefined) topic.is_default_unlocked = is_default_unlocked;
+			if (order_index !== undefined) topic.order_index = order_index;
+			await topic.save();
+			return res.json({ success: true, data: { topic } });
+		} catch (e) {
+			console.error('Admin updateTopic error:', e);
+			return res.status(500).json({ success: false, message: 'Ошибка обновления темы' });
+		}
+	}
+
 	async deleteTopic(req: Request, res: Response) {
 		try {
 			const id = Number(req.params.id);
@@ -232,6 +255,25 @@ class AdminController {
 		} catch (e) {
 			console.error('Admin createFile error:', e);
 			return res.status(500).json({ success: false, message: 'Ошибка создания файла' });
+		}
+	}
+
+	async updateFile(req: Request, res: Response) {
+		try {
+			const id = Number(req.params.id);
+			const { name, file_url, file_type } = req.body as {
+				name?: string; file_url?: string; file_type?: 'word' | 'pdf' | 'zip' | 'other';
+			};
+			const file = await MaterialFile.findByPk(id);
+			if (!file) return res.status(404).json({ success: false, message: 'Файл не найден' });
+			if (name !== undefined) file.name = name;
+			if (file_url !== undefined) file.file_url = file_url;
+			if (file_type !== undefined) file.file_type = file_type;
+			await file.save();
+			return res.json({ success: true, data: { file } });
+		} catch (e) {
+			console.error('Admin updateFile error:', e);
+			return res.status(500).json({ success: false, message: 'Ошибка обновления файла' });
 		}
 	}
 
@@ -491,9 +533,9 @@ class AdminController {
 	async createQuestion(req: Request, res: Response) {
 		try {
 			const quiz_id = Number(req.params.quizId);
-			const { question_text, question_type, points, timer_seconds, explanation, order_index } = req.body as {
+			const { question_text, question_type, points, timer_seconds, explanation, order_index, image_url } = req.body as {
 				question_text?: string; question_type?: 'single_choice' | 'multiple_choice' | 'true_false';
-				points?: number; timer_seconds?: number; explanation?: string; order_index?: number;
+				points?: number; timer_seconds?: number; explanation?: string; order_index?: number; image_url?: string;
 			};
 			if (!question_text || !question_type) {
 				return res.status(400).json({ success: false, message: 'question_text и question_type обязательны' });
@@ -506,6 +548,7 @@ class AdminController {
 				timer_seconds: timer_seconds ?? null,
 				explanation: explanation ?? null,
 				order_index: order_index ?? 0,
+				image_url: image_url ?? null,
 			});
 			await this._recalcQuizTotals(quiz_id);
 			return res.status(201).json({ success: true, data: { question } });
@@ -518,9 +561,9 @@ class AdminController {
 	async updateQuestion(req: Request, res: Response) {
 		try {
 			const id = Number(req.params.id);
-			const { question_text, question_type, points, timer_seconds, explanation, order_index } = req.body as {
+			const { question_text, question_type, points, timer_seconds, explanation, order_index, image_url } = req.body as {
 				question_text?: string; question_type?: 'single_choice' | 'multiple_choice' | 'true_false';
-				points?: number; timer_seconds?: number | null; explanation?: string | null; order_index?: number;
+				points?: number; timer_seconds?: number | null; explanation?: string | null; order_index?: number; image_url?: string | null;
 			};
 			const question = await QuizQuestion.findByPk(id);
 			if (!question) return res.status(404).json({ success: false, message: 'Вопрос не найден' });
@@ -531,6 +574,7 @@ class AdminController {
 				...(timer_seconds !== undefined && { timer_seconds }),
 				...(explanation !== undefined && { explanation }),
 				...(order_index !== undefined && { order_index }),
+				...(image_url !== undefined && { image_url }),
 			});
 			await this._recalcQuizTotals(question.quiz_id);
 			return res.json({ success: true, data: { question } });
@@ -1177,10 +1221,12 @@ class AdminController {
 
 	async createBioGardenPlant(req: Request, res: Response) {
 		try {
-			const { name, description, scientific_name, image_url, growth_stages, required_experience, biology_topics, difficulty_level, is_active } = req.body;
+			const { name, description, scientific_name, image_url, image_urls, growth_stages, required_experience, biology_topics, difficulty_level, is_active } = req.body;
+			const urls: string[] = Array.isArray(image_urls) ? image_urls.filter(Boolean) : (image_url ? [image_url] : []);
 			const plant = await BioGardenPlant.create({
 				name, description, scientific_name,
-				image_url: image_url ?? null,
+				image_url: urls[0] ?? image_url ?? null,
+				image_urls: urls,
 				growth_stages: growth_stages ?? 5,
 				required_experience: required_experience ?? 0,
 				biology_topics: Array.isArray(biology_topics) ? biology_topics : (biology_topics ? String(biology_topics).split(',').map((s: string) => s.trim()).filter(Boolean) : []),
@@ -1197,13 +1243,20 @@ class AdminController {
 	async updateBioGardenPlant(req: Request, res: Response) {
 		try {
 			const id = Number(req.params.id);
-			const fields = ['name', 'description', 'scientific_name', 'image_url', 'growth_stages', 'required_experience', 'difficulty_level', 'is_active'];
+			const fields = ['name', 'description', 'scientific_name', 'growth_stages', 'required_experience', 'difficulty_level', 'is_active'];
 			const updates: any = {};
 			for (const f of fields) if (req.body[f] !== undefined) updates[f] = req.body[f];
 			if (req.body.biology_topics !== undefined) {
 				updates.biology_topics = Array.isArray(req.body.biology_topics)
 					? req.body.biology_topics
 					: String(req.body.biology_topics).split(',').map((s: string) => s.trim()).filter(Boolean);
+			}
+			if (req.body.image_urls !== undefined) {
+				const urls: string[] = Array.isArray(req.body.image_urls) ? req.body.image_urls.filter(Boolean) : [];
+				updates.image_urls = urls;
+				updates.image_url = urls[0] ?? null;
+			} else if (req.body.image_url !== undefined) {
+				updates.image_url = req.body.image_url;
 			}
 			await BioGardenPlant.update(updates, { where: { id } });
 			const updated = await BioGardenPlant.findByPk(id);

@@ -137,7 +137,15 @@ export const BioGardenGame = () => {
 	const activeSlot = selectedSlotIndex != null ? slots[selectedSlotIndex] ?? null : null;
 	const activePlant: BioGardenPlant | null = activeSlot?.plant ?? null;
 	const activePlantDescription = activePlant?.description || 'Описание пока недоступно.';
-	const activePlantImageUrl = activePlant?.image_url?.trim() || '';
+	const activePlantImages: string[] = (() => {
+		if (!activePlant) return [];
+		const urls = activePlant.image_urls?.filter(u => u?.trim()) ?? [];
+		if (urls.length > 0) return urls;
+		const single = activePlant.image_url?.trim();
+		return single ? [single] : [];
+	})();
+	const [galleryIndex, setGalleryIndex] = useState(0);
+	const activePlantImageUrl = activePlantImages[galleryIndex] ?? '';
 	const gameState: PlantGameState | null = activePlant ? getPlantGameState(activePlant) : null;
 
 	const updatePlantInState = useCallback((plantId: number, updates: Partial<BioGardenPlant>) => {
@@ -176,6 +184,7 @@ export const BioGardenGame = () => {
 		setAnswerResult(null);
 		setActionError(null);
 		setIsReviveMode(false);
+		setGalleryIndex(0);
 	}, [selectedSlotIndex]);
 
 	useEffect(() => {
@@ -825,14 +834,37 @@ export const BioGardenGame = () => {
 										</Button>
 									</Group>
 
-									{activePlantImageUrl && (
+									{activePlantImages.length > 0 && (
 										<Stack gap={6}>
-											<Text c='dimmed' size='xs'>Фото реального растения</Text>
+											<Group justify='space-between' align='center'>
+												<Text c='dimmed' size='xs'>Фото реального растения</Text>
+												{activePlantImages.length > 1 && (
+													<Text c='dimmed' size='xs'>{galleryIndex + 1} / {activePlantImages.length}</Text>
+												)}
+											</Group>
 											<div style={{ width: 'min(100%, 560px)', margin: '0 auto', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: 8 }}>
 												<Image src={activePlantImageUrl} alt={activePlant.name} radius='md'
 													h='clamp(190px, 30vh, 320px)' fit='contain'
 													fallbackSrc='https://placehold.co/640x360?text=%D0%A4%D0%BE%D1%82%D0%BE+%D0%BD%D0%B5%D0%B4%D0%BE%D1%81%D1%82%D1%83%D0%BF%D0%BD%D0%BE' />
 											</div>
+											{activePlantImages.length > 1 && (
+												<Group justify='center' gap='sm'>
+													<Button
+														size='xs' variant='light'
+														disabled={galleryIndex === 0}
+														onClick={() => setGalleryIndex(i => i - 1)}
+													>
+														← Пред.
+													</Button>
+													<Button
+														size='xs' variant='light'
+														disabled={galleryIndex === activePlantImages.length - 1}
+														onClick={() => setGalleryIndex(i => i + 1)}
+													>
+														След. →
+													</Button>
+												</Group>
+											)}
 										</Stack>
 									)}
 

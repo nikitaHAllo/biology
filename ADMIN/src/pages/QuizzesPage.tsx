@@ -11,6 +11,7 @@ const QUESTION_TYPES = [
   { value: 'single_choice', label: 'Один ответ' },
   { value: 'multiple_choice', label: 'Несколько ответов' },
   { value: 'true_false', label: 'Верно/Неверно' },
+  { value: 'open_ended', label: 'Развёрнутый ответ (часть 2 ЕГЭ)' },
 ] as const;
 
 type Difficulty = typeof DIFFICULTIES[number]['value'];
@@ -50,6 +51,7 @@ function emptyQuestionForm() {
     timer_seconds: '',
     explanation: '',
     order_index: 0,
+    image_url: '',
   };
 }
 
@@ -299,6 +301,7 @@ export default function QuizzesPage() {
         timer_seconds: questionForm.timer_seconds ? Number(questionForm.timer_seconds) : null,
         explanation: questionForm.explanation || undefined,
         order_index: Number(questionForm.order_index),
+        image_url: questionForm.image_url || null,
       });
       setQuestionForm(emptyQuestionForm());
       setAddingQuestionFor(null);
@@ -322,6 +325,7 @@ export default function QuizzesPage() {
       timer_seconds: q.timer_seconds?.toString() ?? '',
       explanation: q.explanation ?? '',
       order_index: q.order_index,
+      image_url: q.image_url ?? '',
     });
   }
 
@@ -337,6 +341,7 @@ export default function QuizzesPage() {
         timer_seconds: editQuestionForm.timer_seconds ? Number(editQuestionForm.timer_seconds) : null,
         explanation: editQuestionForm.explanation || null,
         order_index: Number(editQuestionForm.order_index),
+        image_url: editQuestionForm.image_url || null,
       });
       setEditingQuestionId(null);
       await loadQuizDetails(quizId);
@@ -894,11 +899,13 @@ function QuestionFormFields({ form, setForm }: { form: QuestionForm; setForm: Re
     <div className="form-row">
       <label style={{ flex: '3 1 280px' }}>
         Текст вопроса *
-        <input
+        <textarea
           value={form.question_text}
           onChange={e => setForm(f => ({ ...f, question_text: e.target.value }))}
           required
-          placeholder="Введите вопрос..."
+          placeholder="Введите вопрос... (Enter — новый абзац)"
+          rows={3}
+          style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 'inherit' }}
         />
       </label>
       <label style={{ flex: '1 1 140px' }}>
@@ -934,6 +941,25 @@ function QuestionFormFields({ form, setForm }: { form: QuestionForm; setForm: Re
           placeholder="Объяснение правильного ответа"
         />
       </label>
+      <label style={{ flex: '2 1 220px' }}>
+        URL картинки
+        <input
+          value={form.image_url}
+          onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))}
+          placeholder="https://... (необязательно)"
+        />
+      </label>
+      {form.image_url && (
+        <div style={{ flex: '0 0 auto' }}>
+          <span style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Превью</span>
+          <img
+            src={form.image_url}
+            alt="preview"
+            style={{ maxHeight: 80, maxWidth: 140, objectFit: 'contain', border: '1px solid #ddd', borderRadius: 4 }}
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -184,6 +184,7 @@ function GameScreen({ virusCase, onBack }: { virusCase: VirusCase; onBack: () =>
   const [state, setState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
   const completeCalledRef = useRef(false);
+  const nextBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     apiService.getVirusCase(virusCase.id)
@@ -260,6 +261,9 @@ function GameScreen({ virusCase, onBack }: { virusCase: VirusCase; onBack: () =>
           submitting: false,
         };
       });
+      setTimeout(() => {
+        nextBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 120);
     } catch (e) {
       console.error(e);
       setState(s => s ? { ...s, submitting: false } : s);
@@ -555,7 +559,7 @@ function GameScreen({ virusCase, onBack }: { virusCase: VirusCase; onBack: () =>
 
         {/* Next / Finish button */}
         {isAnswered && (
-          <div style={{ textAlign: 'right' }} className="v-fade">
+          <div ref={nextBtnRef} style={{ textAlign: 'right' }} className="v-fade">
             <button onClick={handleNextChapter} style={btn('#3b82f6', true)}>
               {currentChapterIndex + 1 >= totalChapters ? 'Завершить' : 'Следующая глава →'}
             </button>

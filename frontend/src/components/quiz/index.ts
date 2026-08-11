@@ -6,3 +6,4 @@ export * from './QuizOptions';
 export * from './QuizProgress';
 export * from './QuizResult';
 export * from './QuizNavigation.tsx';
+export * from './OpenAnswerInput';

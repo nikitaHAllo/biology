@@ -93,6 +93,7 @@ class BioGardenController {
 					growth_stages: p.growth_stages,
 					biology_topics: p.biology_topics,
 					image_url: p.image_url,
+					image_urls: p.image_urls ?? [],
 				}));
 
 			const totalExperience = userProgress.reduce((sum, p) => sum + (p.experience_points || 0), 0);
@@ -768,6 +769,7 @@ class BioGardenController {
 							'name',
 							'scientific_name',
 							'image_url',
+							'image_urls',
 							'growth_stages',
 						],
 					},

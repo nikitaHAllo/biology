@@ -2,13 +2,14 @@ export interface QuizQuestion {
 	id: number;
 	quiz_id: number;
 	question_text: string;
-	question_type: 'single_choice' | 'multiple_choice' | 'true_false';
+	question_type: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended';
 	options: QuizOption[];
 	correct_answer_ids: number[];
 	explanation?: string;
 	points: number;
 	order: number;
 	timer_seconds?: number | null;
+	image_url?: string | null;
 }
 
 export interface QuizCategory {

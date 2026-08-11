@@ -5,6 +5,7 @@ export interface BioGardenPlant {
 	scientific_name: string;
 	description: string;
 	image_url: string;
+	image_urls?: string[];
 	growth_stages: number;
 	required_experience: number;
 	difficulty_level: number;
@@ -115,6 +116,7 @@ export interface AvailablePlant {
 	growth_stages: number;
 	biology_topics: string[];
 	image_url: string;
+	image_urls?: string[];
 }
 
 export interface PlantSlot {

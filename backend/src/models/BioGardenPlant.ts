@@ -8,6 +8,7 @@ export interface BioGardenPlantAttributes {
 	description: string;
 	scientific_name: string;
 	image_url: string;
+	image_urls: string[];
 	growth_stages: number;
 	required_experience: number;
 	biology_topics: string[];
@@ -32,6 +33,7 @@ export class BioGardenPlant
 	declare description: string;
 	declare scientific_name: string;
 	declare image_url: string;
+	declare image_urls: string[];
 	declare growth_stages: number;
 	declare required_experience: number;
 	declare biology_topics: string[];
@@ -67,6 +69,11 @@ BioGardenPlant.init(
 		image_url: {
 			type: DataTypes.STRING(500),
 			allowNull: true,
+		},
+		image_urls: {
+			type: DataTypes.ARRAY(DataTypes.TEXT),
+			allowNull: false,
+			defaultValue: [],
 		},
 		growth_stages: {
 			type: DataTypes.INTEGER,

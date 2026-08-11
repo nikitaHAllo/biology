@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { adminController } from '../controllers/admin.controller';
+import { openAnswersController } from '../controllers/openAnswers.controller';
 import { adminAuth } from '../middleware/adminAuth';
 
 const router = Router();
@@ -14,9 +15,11 @@ router.post('/sections', adminAuth, (req, res) => adminController.createSection(
 router.delete('/sections/:id', adminAuth, (req, res) => adminController.deleteSection(req, res));
 
 router.post('/topics', adminAuth, (req, res) => adminController.createTopic(req, res));
+router.put('/topics/:id', adminAuth, (req, res) => adminController.updateTopic(req, res));
 router.delete('/topics/:id', adminAuth, (req, res) => adminController.deleteTopic(req, res));
 
 router.post('/files', adminAuth, (req, res) => adminController.createFile(req, res));
+router.put('/files/:id', adminAuth, (req, res) => adminController.updateFile(req, res));
 router.delete('/files/:id', adminAuth, (req, res) => adminController.deleteFile(req, res));
 
 router.get('/tasks', adminAuth, (req, res) => adminController.getTasks(req, res));
@@ -106,5 +109,9 @@ router.delete('/biogarden/questions/:id', adminAuth, (req, res) => adminControll
 router.post('/biogarden/questions/:questionId/options', adminAuth, (req, res) => adminController.createBioGardenOption(req, res));
 router.put('/biogarden/options/:id', adminAuth, (req, res) => adminController.updateBioGardenOption(req, res));
 router.delete('/biogarden/options/:id', adminAuth, (req, res) => adminController.deleteBioGardenOption(req, res));
+
+// Open answers review
+router.get('/open-answers', adminAuth, (req, res) => openAnswersController.adminList(req, res));
+router.put('/open-answers/:id/review', adminAuth, (req, res) => openAnswersController.adminReview(req, res));
 
 export { router as adminRouter };

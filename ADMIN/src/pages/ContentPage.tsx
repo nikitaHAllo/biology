@@ -5,6 +5,19 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 }
 
+interface FileEditState {
+  name: string;
+  url: string;
+  type: string;
+  saving: boolean;
+}
+
+interface TopicCoinsEditState {
+  price: string;
+  unlocked: boolean;
+  saving: boolean;
+}
+
 export default function ContentPage() {
   const [sections, setSections] = useState<AdminSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +40,12 @@ export default function ContentPage() {
 
   // New file: per topic
   const [fileForms, setFileForms] = useState<Record<number, { name: string; url: string; type: string; saving: boolean }>>({});
+
+  // Edit file: per file id
+  const [editingFile, setEditingFile] = useState<Record<number, FileEditState>>({});
+
+  // Edit topic coins: per topic id
+  const [editingTopicCoins, setEditingTopicCoins] = useState<Record<number, TopicCoinsEditState>>({});
 
   async function load() {
     setLoading(true);
@@ -125,6 +144,35 @@ export default function ContentPage() {
     }
   }
 
+  // Topic coins editing
+  function startEditTopicCoins(topic: AdminTopic) {
+    setEditingTopicCoins(s => ({
+      ...s,
+      [topic.id]: { price: String(topic.price_repcoins), unlocked: topic.is_default_unlocked, saving: false },
+    }));
+  }
+
+  function cancelEditTopicCoins(topicId: number) {
+    setEditingTopicCoins(s => { const n = { ...s }; delete n[topicId]; return n; });
+  }
+
+  async function saveTopicCoins(topicId: number) {
+    const state = editingTopicCoins[topicId];
+    if (!state) return;
+    setEditingTopicCoins(s => ({ ...s, [topicId]: { ...s[topicId], saving: true } }));
+    try {
+      await api.updateTopic(topicId, {
+        price_repcoins: Number(state.price),
+        is_default_unlocked: state.unlocked,
+      });
+      cancelEditTopicCoins(topicId);
+      await load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Ошибка сохранения');
+      setEditingTopicCoins(s => ({ ...s, [topicId]: { ...s[topicId], saving: false } }));
+    }
+  }
+
   // File CRUD
   function getFileForm(topicId: number) {
     return fileForms[topicId] ?? { name: '', url: '', type: 'pdf', saving: false };
@@ -156,6 +204,33 @@ export default function ContentPage() {
       await load();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Ошибка');
+    }
+  }
+
+  // File editing
+  function startEditFile(file: AdminFile) {
+    setEditingFile(s => ({
+      ...s,
+      [file.id]: { name: file.name, url: file.file_url, type: file.file_type, saving: false },
+    }));
+  }
+
+  function cancelEditFile(fileId: number) {
+    setEditingFile(s => { const n = { ...s }; delete n[fileId]; return n; });
+  }
+
+  async function saveFile(fileId: number) {
+    const state = editingFile[fileId];
+    if (!state) return;
+    if (!state.name || !state.url) { alert('Имя и URL обязательны'); return; }
+    setEditingFile(s => ({ ...s, [fileId]: { ...s[fileId], saving: true } }));
+    try {
+      await api.updateFile(fileId, { name: state.name, file_url: state.url, file_type: state.type });
+      cancelEditFile(fileId);
+      await load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Ошибка сохранения');
+      setEditingFile(s => ({ ...s, [fileId]: { ...s[fileId], saving: false } }));
     }
   }
 
@@ -270,6 +345,7 @@ export default function ContentPage() {
                 {(section.topics ?? []).map((topic: AdminTopic) => {
                   const isTopicOpen = openTopics.has(topic.id);
                   const ff = getFileForm(topic.id);
+                  const coinsEdit = editingTopicCoins[topic.id];
                   return (
                     <div className="topic-block" key={topic.id}>
                       <div className="topic-header" onClick={() => toggleTopic(topic.id)}>
@@ -278,10 +354,61 @@ export default function ContentPage() {
                           {' '}
                           <strong>{topic.title}</strong>
                           <span className="text-muted" style={{ marginLeft: 6 }}>/{topic.slug}</span>
-                          {topic.is_default_unlocked
-                            ? <span className="badge" style={{ marginLeft: 6, background: '#e8f8e8', color: '#2a8a2a' }}>бесплатно</span>
-                            : <span className="badge" style={{ marginLeft: 6 }}>{topic.price_repcoins} монет</span>
-                          }
+
+                          {/* Coins badge / inline edit */}
+                          {coinsEdit ? (
+                            <span
+                              style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <input
+                                type="number"
+                                value={coinsEdit.price}
+                                onChange={e => setEditingTopicCoins(s => ({ ...s, [topic.id]: { ...s[topic.id], price: e.target.value } }))}
+                                style={{ width: 70, padding: '2px 4px', fontSize: 12 }}
+                                min={0}
+                              />
+                              <label style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={coinsEdit.unlocked}
+                                  onChange={e => setEditingTopicCoins(s => ({ ...s, [topic.id]: { ...s[topic.id], unlocked: e.target.checked } }))}
+                                />
+                                бесплатно
+                              </label>
+                              <button
+                                className="btn btn-primary btn-sm"
+                                disabled={coinsEdit.saving}
+                                onClick={() => saveTopicCoins(topic.id)}
+                                style={{ padding: '2px 8px', fontSize: 12 }}
+                              >
+                                {coinsEdit.saving ? '...' : 'Сохранить'}
+                              </button>
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => cancelEditTopicCoins(topic.id)}
+                                style={{ padding: '2px 8px', fontSize: 12 }}
+                              >
+                                Отмена
+                              </button>
+                            </span>
+                          ) : (
+                            <span style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              {topic.is_default_unlocked
+                                ? <span className="badge" style={{ background: '#e8f8e8', color: '#2a8a2a' }}>бесплатно</span>
+                                : <span className="badge">{topic.price_repcoins} монет</span>
+                              }
+                              <button
+                                className="btn btn-sm"
+                                title="Изменить цену"
+                                onClick={e => { e.stopPropagation(); startEditTopicCoins(topic); }}
+                                style={{ padding: '1px 6px', fontSize: 11 }}
+                              >
+                                ✏️
+                              </button>
+                            </span>
+                          )}
+
                           <span className="badge" style={{ marginLeft: 6 }}>{topic.files?.length ?? 0} файлов</span>
                         </span>
                         <button
@@ -295,18 +422,68 @@ export default function ContentPage() {
                       {isTopicOpen && (
                         <div className="topic-body">
                           {/* Files list */}
-                          {(topic.files ?? []).map((file: AdminFile) => (
-                            <div className="file-row" key={file.id}>
-                              <span>
-                                <strong>{file.name}</strong>
-                                <span className="badge" style={{ marginLeft: 6 }}>{file.file_type}</span>
-                                <a href={file.file_url} target="_blank" rel="noreferrer" style={{ marginLeft: 8, fontSize: 12, color: '#4a90d9' }}>
-                                  ссылка
-                                </a>
-                              </span>
-                              <button className="btn btn-danger btn-sm" onClick={() => handleDeleteFile(file.id)}>✕</button>
-                            </div>
-                          ))}
+                          {(topic.files ?? []).map((file: AdminFile) => {
+                            const fe = editingFile[file.id];
+                            return (
+                              <div key={file.id}>
+                                {fe ? (
+                                  /* Edit mode */
+                                  <div className="file-row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                                    <input
+                                      value={fe.name}
+                                      onChange={e => setEditingFile(s => ({ ...s, [file.id]: { ...s[file.id], name: e.target.value } }))}
+                                      placeholder="Имя файла"
+                                      style={{ flex: '1 1 140px', minWidth: 120 }}
+                                    />
+                                    <input
+                                      value={fe.url}
+                                      onChange={e => setEditingFile(s => ({ ...s, [file.id]: { ...s[file.id], url: e.target.value } }))}
+                                      placeholder="URL"
+                                      style={{ flex: '2 1 220px', minWidth: 160 }}
+                                    />
+                                    <select
+                                      value={fe.type}
+                                      onChange={e => setEditingFile(s => ({ ...s, [file.id]: { ...s[file.id], type: e.target.value } }))}
+                                      style={{ flex: '0 0 90px' }}
+                                    >
+                                      <option value="pdf">PDF</option>
+                                      <option value="word">Word</option>
+                                      <option value="zip">ZIP</option>
+                                      <option value="other">Другой</option>
+                                    </select>
+                                    <button
+                                      className="btn btn-primary btn-sm"
+                                      disabled={fe.saving}
+                                      onClick={() => saveFile(file.id)}
+                                    >
+                                      {fe.saving ? '...' : 'Сохранить'}
+                                    </button>
+                                    <button
+                                      className="btn btn-sm"
+                                      onClick={() => cancelEditFile(file.id)}
+                                    >
+                                      Отмена
+                                    </button>
+                                  </div>
+                                ) : (
+                                  /* View mode */
+                                  <div className="file-row">
+                                    <span>
+                                      <strong>{file.name}</strong>
+                                      <span className="badge" style={{ marginLeft: 6 }}>{file.file_type}</span>
+                                      <a href={file.file_url} target="_blank" rel="noreferrer" style={{ marginLeft: 8, fontSize: 12, color: '#4a90d9' }}>
+                                        ссылка
+                                      </a>
+                                    </span>
+                                    <span style={{ display: 'flex', gap: 4 }}>
+                                      <button className="btn btn-sm" onClick={() => startEditFile(file)} title="Редактировать">✏️</button>
+                                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteFile(file.id)}>✕</button>
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                           {(!topic.files || topic.files.length === 0) && <p className="text-muted" style={{ marginBottom: 8 }}>Файлов нет</p>}
 
                           {/* Add file form */}

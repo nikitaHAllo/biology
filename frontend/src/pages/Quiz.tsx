@@ -1,5 +1,5 @@
 // pages/QuizPage.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
 	Loader, Alert, Card, Group, Button, Stack, Text, Badge, ThemeIcon,
 	ScrollArea,
@@ -13,9 +13,11 @@ import {
 	QuizResult,
 	QuizLayout,
 	QuizNavigation,
+	OpenAnswerInput,
 } from '../components';
 import { IconCheck, IconEye } from '@tabler/icons-react';
 import { useQuiz, useTelegram, useTimer } from '../hooks';
+import { useUserData } from '../hooks/useUserData';
 
 const QuizPage = () => {
 	const { user } = useTelegram();
@@ -52,13 +54,20 @@ const QuizPage = () => {
 		prevQuiz,
 		toggleOption,
 		handleTimeout,
+		quiz,
 	} = useQuiz(user);
 
 	const timer = useTimer({
 		initialTime: currentQuestion?.timer_seconds ?? null,
-		active: answerState === 'idle' && !isFinished && activeList !== 'completed',
+		active: answerState === 'idle' && !isFinished && activeList !== 'completed' && currentQuestion?.question_type !== 'open_ended',
 		onTimeout: handleTimeout,
 	});
+
+	const { profile } = useUserData();
+	const [userCoins, setUserCoins] = useState(0);
+	useEffect(() => { if (profile?.coins !== undefined) setUserCoins(profile.coins); }, [profile?.coins]);
+
+	const isOpenEnded = currentQuestion?.question_type === 'open_ended';
 
 	const [activeTab, setActiveTab] = useState<'new' | 'completed'>('new');
 
@@ -192,16 +201,38 @@ const QuizPage = () => {
 								/>
 							</Card>
 
-							<Card withBorder padding='lg'>
-								<QuizOptions
-									question={currentQuestion}
-									selected={isViewOnly ? currentQuestion.correct_answer_ids : selectedOptions}
-									disabled={isViewOnly || answerState !== 'idle'}
-									toggle={toggleOption}
-								/>
-							</Card>
+							{currentQuestion.image_url && (
+								<Card withBorder padding='md' style={{ textAlign: 'center' }}>
+									<img
+										src={currentQuestion.image_url}
+										alt="Изображение к вопросу"
+										style={{ maxWidth: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 8 }}
+									/>
+								</Card>
+							)}
 
-							{!isViewOnly && answerState !== 'idle' && currentQuestion.explanation && (
+							{isOpenEnded ? (
+								<Card withBorder padding='lg'>
+									<Text size='sm' c='dimmed' mb='sm'>Развёрнутый ответ (часть 2 ЕГЭ)</Text>
+									<OpenAnswerInput
+										questionId={currentQuestion.id}
+										quizId={quiz!.id}
+										userCoins={userCoins}
+										onCoinsChanged={setUserCoins}
+									/>
+								</Card>
+							) : (
+								<Card withBorder padding='lg'>
+									<QuizOptions
+										question={currentQuestion}
+										selected={isViewOnly ? currentQuestion.correct_answer_ids : selectedOptions}
+										disabled={isViewOnly || answerState !== 'idle'}
+										toggle={toggleOption}
+									/>
+								</Card>
+							)}
+
+							{!isViewOnly && !isOpenEnded && answerState !== 'idle' && currentQuestion.explanation && (
 								<QuizExplanation
 									state={answerState}
 									text={currentQuestion.explanation}
@@ -238,16 +269,24 @@ const QuizPage = () => {
 								</Card>
 							) : (
 								<Card withBorder padding='lg'>
-									<QuizFooter
-										canCheck={selectedOptions.length > 0 && answerState === 'idle'}
-										canNext={answerState !== 'idle'}
-										onCheck={() => {
-											checkAnswer();
-											timer.stop();
-										}}
-										onNext={next}
-										isLast={currentQuestionIndex === totalQuestions - 1}
-									/>
+									{isOpenEnded ? (
+										<Group justify='flex-end'>
+											<Button variant='light' onClick={next}>
+												{currentQuestionIndex === totalQuestions - 1 ? 'Завершить →' : 'Далее →'}
+											</Button>
+										</Group>
+									) : (
+										<QuizFooter
+											canCheck={selectedOptions.length > 0 && answerState === 'idle'}
+											canNext={answerState !== 'idle'}
+											onCheck={() => {
+												checkAnswer();
+												timer.stop();
+											}}
+											onNext={next}
+											isLast={currentQuestionIndex === totalQuestions - 1}
+										/>
+									)}
 								</Card>
 							)}
 

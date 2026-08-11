@@ -19,7 +19,7 @@ export const QuizHeader = ({
 			<Text fw={600}>
 				Вопрос {index + 1} / {total}
 			</Text>
-			<Text c='dimmed'>{question}</Text>
+			<Text c='dimmed' style={{ whiteSpace: 'pre-wrap' }}>{question}</Text>
 		</div>
 
 		<Group>

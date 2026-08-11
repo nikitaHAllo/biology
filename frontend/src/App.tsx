@@ -18,16 +18,19 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import { RootRedirect } from './components/RootRedirect';
 
-// Маршруты, где Header скрыт (игры на весь экран / отдельные экраны)
-const FULLSCREEN_ROUTES = ['/biogarden', '/genetics', '/virus', '/login', '/register'];
+// Маршруты, где Header скрыт
+const HEADER_HIDDEN_ROUTES = ['/biogarden', '/genetics', '/virus', '/login', '/register'];
+// Маршруты с заблокированным overflow (сложные game-UI со своим скроллом)
+const OVERFLOW_LOCKED_ROUTES = ['/biogarden', '/genetics'];
 
 const AppLayout: React.FC = () => {
 	const location = useLocation();
-	const isFullscreen = FULLSCREEN_ROUTES.includes(location.pathname);
+	const hideHeader = HEADER_HIDDEN_ROUTES.includes(location.pathname);
+	const overflowLocked = OVERFLOW_LOCKED_ROUTES.includes(location.pathname);
 
 	return (
-		<div className='app' style={isFullscreen ? { height: '100dvh', overflow: 'hidden' } : undefined}>
-			{!isFullscreen && <Header />}
+		<div className='app' style={hideHeader ? { height: '100dvh', overflow: overflowLocked ? 'hidden' : 'auto' } : undefined}>
+			{!hideHeader && <Header />}
 
 			<Routes>
 				{/* Основные страницы */}
