@@ -92,7 +92,9 @@ class QuizzesController {
 
 			const scoreNum = Number(score);
 
-			const quiz = await Quiz.findByPk(quizIdNum, { raw: true });
+			const quiz = await Quiz.findByPk(quizIdNum, {
+				include: [{ model: QuizQuestion, as: 'questions' }],
+			});
 			if (!quiz) {
 				return res.status(404).json({ success: false, message: 'Викторина не найдена' });
 			}
@@ -102,7 +104,12 @@ class QuizzesController {
 				return res.status(401).json({ success: false, message: 'Требуется авторизация' });
 			}
 
-			const isPassed = scoreNum === quiz.total_questions && quiz.total_questions > 0;
+			const questions = (quiz as any).questions as QuizQuestion[] ?? [];
+			const scoredCount = questions.filter((q: QuizQuestion) => q.question_type !== 'open_ended').length;
+			// Pure open_ended quiz has no scored part — always passes on submit
+			const isPassed = scoredCount === 0
+				? quiz.total_questions > 0
+				: scoreNum === scoredCount;
 			const status = isPassed ? 'completed' : 'pending';
 
 			const existing = await UserQuizResult.findOne({

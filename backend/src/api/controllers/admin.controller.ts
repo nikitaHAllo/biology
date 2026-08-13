@@ -1067,14 +1067,19 @@ class AdminController {
 	async createVirusChapter(req: Request, res: Response) {
 		try {
 			const case_id = Number(req.params.caseId);
-			const { title, narrative_text, question_text, order_index } = req.body as {
-				title?: string; narrative_text?: string; question_text?: string; order_index?: number;
+			const { title, narrative_text, question_text, is_final, order_index } = req.body as {
+				title?: string; narrative_text?: string; question_text?: string; is_final?: boolean; order_index?: number;
 			};
-			if (!title || !narrative_text || !question_text) {
-				return res.status(400).json({ success: false, message: 'title, narrative_text и question_text обязательны' });
+			if (!title || !narrative_text) {
+				return res.status(400).json({ success: false, message: 'title и narrative_text обязательны' });
+			}
+			if (!is_final && !question_text) {
+				return res.status(400).json({ success: false, message: 'question_text обязателен для обычных глав' });
 			}
 			const chapter = await VirusChapter.create({
-				case_id, title, narrative_text, question_text,
+				case_id, title, narrative_text,
+				question_text: is_final ? null : question_text,
+				is_final: is_final ?? false,
 				order_index: order_index ?? 0,
 			});
 			return res.status(201).json({ success: true, data: { chapter } });
@@ -1087,15 +1092,16 @@ class AdminController {
 	async updateVirusChapter(req: Request, res: Response) {
 		try {
 			const id = Number(req.params.id);
-			const { title, narrative_text, question_text, order_index } = req.body as {
-				title?: string; narrative_text?: string; question_text?: string; order_index?: number;
+			const { title, narrative_text, question_text, is_final, order_index } = req.body as {
+				title?: string; narrative_text?: string; question_text?: string; is_final?: boolean; order_index?: number;
 			};
 			const chapter = await VirusChapter.findByPk(id);
 			if (!chapter) return res.status(404).json({ success: false, message: 'Глава не найдена' });
 			await chapter.update({
 				...(title !== undefined && { title }),
 				...(narrative_text !== undefined && { narrative_text }),
-				...(question_text !== undefined && { question_text }),
+				...(is_final !== undefined && { is_final }),
+				...(question_text !== undefined && { question_text: is_final ? null : question_text }),
 				...(order_index !== undefined && { order_index }),
 			});
 			return res.json({ success: true, data: { chapter } });

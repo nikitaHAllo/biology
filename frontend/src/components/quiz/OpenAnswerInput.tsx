@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Textarea, Button, Card, Text, Badge, Group, Stack, Alert } from '@mantine/core';
-import { IconCheck, IconClock, IconSend } from '@tabler/icons-react';
+import { Textarea, Button, Card, Text, Badge, Group, Stack, Alert, Collapse, Divider } from '@mantine/core';
+import { IconCheck, IconClock, IconSend, IconEye, IconEyeOff, IconBook, IconRefresh } from '@tabler/icons-react';
 import { apiService } from '../../api';
 import type { OpenAnswerData } from '../../api';
 
@@ -11,16 +11,22 @@ interface Props {
 	quizId: number;
 	userCoins: number;
 	onCoinsChanged: (newCoins: number) => void;
+	explanation?: string | null;
 }
 
-export const OpenAnswerInput = ({ questionId, quizId, userCoins, onCoinsChanged }: Props) => {
+export const OpenAnswerInput = ({ questionId, quizId, userCoins, onCoinsChanged, explanation }: Props) => {
 	const [text, setText] = useState('');
 	const [saved, setSaved] = useState<OpenAnswerData | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [requesting, setRequesting] = useState(false);
 	const [loaded, setLoaded] = useState(false);
+	const [showExplanation, setShowExplanation] = useState(false);
+	// Allows re-answering even after teacher review
+	const [reAnswering, setReAnswering] = useState(false);
 
 	useEffect(() => {
+		setShowExplanation(false);
+		setReAnswering(false);
 		let cancelled = false;
 		apiService.getOpenAnswer(questionId).then(({ answer }) => {
 			if (cancelled) return;
@@ -67,6 +73,8 @@ export const OpenAnswerInput = ({ questionId, quizId, userCoins, onCoinsChanged 
 	const isPending = saved?.review_status === 'pending';
 	const isSaved = !!saved;
 	const isDirty = text.trim() !== (saved?.answer_text ?? '').trim();
+	const canSeeExplanation = !!explanation && isSaved && !isDirty && !reAnswering;
+	const isEditable = reAnswering || (!isPending && !isReviewed);
 
 	return (
 		<Stack gap='sm'>
@@ -77,12 +85,12 @@ export const OpenAnswerInput = ({ questionId, quizId, userCoins, onCoinsChanged 
 				autosize
 				minRows={4}
 				maxRows={12}
-				disabled={isPending || isReviewed}
+				disabled={!isEditable}
 				style={{ whiteSpace: 'pre-wrap' }}
 			/>
 
 			{/* Save button */}
-			{!isPending && !isReviewed && (
+			{isEditable && (
 				<Group>
 					<Button
 						leftSection={<IconSend size={16} />}
@@ -99,31 +107,68 @@ export const OpenAnswerInput = ({ questionId, quizId, userCoins, onCoinsChanged 
 				</Group>
 			)}
 
-			{/* Request review */}
-			{isSaved && !isDirty && !isPending && !isReviewed && (
-				<Card withBorder padding='sm' bg='blue.0'>
-					<Group justify='space-between' align='center'>
-						<Stack gap={2}>
-							<Text size='sm' fw={500}>Запросить проверку у преподавателя</Text>
-							<Text size='xs' c='dimmed'>
-								Стоимость: {REVIEW_COST} монет · У вас: {userCoins} монет
+			{/* Explanation block (self-check) */}
+			{canSeeExplanation && (
+				<Card withBorder padding='sm' bg='teal.0'>
+					<Stack gap='xs'>
+						<Group justify='space-between' align='center'>
+							<Group gap='xs'>
+								<IconBook size={16} color='var(--mantine-color-teal-7)' />
+								<Text size='sm' fw={600} c='teal.8'>Пояснение к ответу</Text>
+							</Group>
+							<Button
+								size='xs'
+								variant='subtle'
+								color='teal'
+								leftSection={showExplanation ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+								onClick={() => setShowExplanation(v => !v)}
+							>
+								{showExplanation ? 'Скрыть' : 'Посмотреть'}
+							</Button>
+						</Group>
+						<Collapse in={showExplanation}>
+							<Divider my='xs' color='teal.2' />
+							<Text size='sm' style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+								{explanation}
 							</Text>
-						</Stack>
-						<Button
-							leftSection={<IconCheck size={16} />}
-							onClick={handleRequestReview}
-							loading={requesting}
-							disabled={userCoins < REVIEW_COST}
-							color='blue'
-							variant='light'
-						>
-							Запросить ({REVIEW_COST} монет)
-						</Button>
-					</Group>
-					{userCoins < REVIEW_COST && (
-						<Text size='xs' c='red' mt={4}>Недостаточно монет для запроса проверки</Text>
-					)}
+						</Collapse>
+						{!showExplanation && (
+							<Text size='xs' c='teal.6'>
+								Сверьте свой ответ с эталоном — проверка репетитора необязательна
+							</Text>
+						)}
+					</Stack>
 				</Card>
+			)}
+
+			{/* Request review */}
+			{isSaved && !isDirty && !isPending && !isReviewed && !reAnswering && (
+				<>
+					{canSeeExplanation && <Divider label='или получить оценку репетитора' labelPosition='center' />}
+					<Card withBorder padding='sm' bg='blue.0'>
+						<Group justify='space-between' align='center'>
+							<Stack gap={2}>
+								<Text size='sm' fw={500}>Запросить проверку у преподавателя</Text>
+								<Text size='xs' c='dimmed'>
+									Стоимость: {REVIEW_COST} монет · У вас: {userCoins} монет
+								</Text>
+							</Stack>
+							<Button
+								leftSection={<IconCheck size={16} />}
+								onClick={handleRequestReview}
+								loading={requesting}
+								disabled={userCoins < REVIEW_COST}
+								color='blue'
+								variant='light'
+							>
+								Запросить ({REVIEW_COST} монет)
+							</Button>
+						</Group>
+						{userCoins < REVIEW_COST && (
+							<Text size='xs' c='red' mt={4}>Недостаточно монет для запроса проверки</Text>
+						)}
+					</Card>
+				</>
 			)}
 
 			{/* Pending status */}
@@ -137,12 +182,23 @@ export const OpenAnswerInput = ({ questionId, quizId, userCoins, onCoinsChanged 
 			)}
 
 			{/* Reviewed result */}
-			{isReviewed && (
+			{isReviewed && !reAnswering && (
 				<Alert icon={<IconCheck size={16} />} color='green' variant='light'>
 					<Stack gap={4}>
-						<Group>
-							<Text size='sm' fw={600}>Проверено!</Text>
-							<Badge color='green'>Балл: {saved?.score ?? '—'}</Badge>
+						<Group justify='space-between' align='flex-start'>
+							<Group gap='xs'>
+								<Text size='sm' fw={600}>Проверено!</Text>
+								<Badge color='green'>Балл: {saved?.score ?? '—'}</Badge>
+							</Group>
+							<Button
+								size='xs'
+								variant='subtle'
+								color='gray'
+								leftSection={<IconRefresh size={12} />}
+								onClick={() => { setReAnswering(true); setText(''); }}
+							>
+								Переответить
+							</Button>
 						</Group>
 						{saved?.teacher_comment && (
 							<Text size='sm' style={{ whiteSpace: 'pre-wrap' }}>{saved.teacher_comment}</Text>

@@ -277,7 +277,8 @@ export interface AdminVirusChapter {
   order_index: number;
   title: string;
   narrative_text: string;
-  question_text: string;
+  question_text: string | null;
+  is_final: boolean;
   options: AdminVirusChapterOption[];
 }
 
@@ -505,10 +506,10 @@ export const api = {
     req('DELETE', `/virus/suspects/${id}`),
 
   // Virus Chapters
-  createVirusChapter: (caseId: number, body: { title: string; narrative_text: string; question_text: string; order_index?: number }) =>
+  createVirusChapter: (caseId: number, body: { title: string; narrative_text: string; question_text?: string; is_final?: boolean; order_index?: number }) =>
     req<{ chapter: AdminVirusChapter }>('POST', `/virus/cases/${caseId}/chapters`, body),
 
-  updateVirusChapter: (id: number, body: Partial<{ title: string; narrative_text: string; question_text: string; order_index: number }>) =>
+  updateVirusChapter: (id: number, body: Partial<{ title: string; narrative_text: string; question_text: string; is_final: boolean; order_index: number }>) =>
     req<{ chapter: AdminVirusChapter }>('PUT', `/virus/chapters/${id}`, body),
 
   deleteVirusChapter: (id: number) =>

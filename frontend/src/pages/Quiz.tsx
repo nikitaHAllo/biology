@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import {
 	Loader, Alert, Card, Group, Button, Stack, Text, Badge, ThemeIcon,
-	ScrollArea,
+	ScrollArea, Title,
 } from '@mantine/core';
 import {
 	QuizExplanation,
@@ -36,9 +36,9 @@ const QuizPage = () => {
 		totalQuestions,
 		answerState,
 		isFinished,
+		finishSnapshot,
 		selectedOptions,
 		coins,
-		history,
 		progress,
 		currentQuizIndex,
 		totalQuizzes,
@@ -83,16 +83,37 @@ const QuizPage = () => {
 	const isListEmpty = !currentList || currentList.length === 0;
 	const isViewOnly = activeList === 'completed';
 
-	if (isFinished && !isViewOnly) {
-		const correct = Object.values(history).filter(x => x.isCorrect).length;
-		const isPassed = correct === totalQuestions;
+	if (isFinished && !isViewOnly && finishSnapshot) {
+		const { scoredTotal, correct, earnedCoins } = finishSnapshot;
 
+		if (scoredTotal === 0) {
+			return (
+				<QuizLayout>
+					<Card withBorder padding='xl' ta='center'>
+						<Stack align='center' gap='md'>
+							<ThemeIcon size={64} radius='xl' color='teal' variant='light'>
+								<IconCheck size={32} />
+							</ThemeIcon>
+							<Title order={3}>Ответы записаны!</Title>
+							<Text c='dimmed' maw={400}>
+								Ваши развёрнутые ответы сохранены. Сверьтесь с пояснением или запросите проверку преподавателя.
+							</Text>
+							<Button variant='light' color='teal' onClick={restart}>
+								Просмотреть и проверить ответы
+							</Button>
+						</Stack>
+					</Card>
+				</QuizLayout>
+			);
+		}
+
+		const isPassed = correct === scoredTotal;
 		return (
 			<QuizLayout>
 				<QuizResult
 					correct={correct}
-					total={totalQuestions}
-					coins={coins}
+					total={scoredTotal}
+					coins={earnedCoins}
 					restart={restart}
 					onNextQuiz={nextQuiz}
 					hasNextQuiz={hasNextQuiz && isPassed}
@@ -219,6 +240,7 @@ const QuizPage = () => {
 										quizId={quiz!.id}
 										userCoins={userCoins}
 										onCoinsChanged={setUserCoins}
+										explanation={currentQuestion.explanation}
 									/>
 								</Card>
 							) : (

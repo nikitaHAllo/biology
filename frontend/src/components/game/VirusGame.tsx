@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiService } from '../../api';
+import { useTelegram } from '../../hooks';
 import type {
 	VirusCase,
 	VirusChapter,
@@ -185,6 +186,11 @@ function GameScreen({ virusCase, onBack }: { virusCase: VirusCase; onBack: () =>
   const [loading, setLoading] = useState(true);
   const completeCalledRef = useRef(false);
   const nextBtnRef = useRef<HTMLDivElement>(null);
+  const { user: tgUser } = useTelegram();
+  const telegramIdRef = useRef<number | undefined>(undefined);
+  telegramIdRef.current = tgUser?.id ? Number(tgUser.id) : undefined;
+  const stateRef = useRef<GameState | null>(null);
+  stateRef.current = state;
 
   useEffect(() => {
     apiService.getVirusCase(virusCase.id)
@@ -208,17 +214,20 @@ function GameScreen({ virusCase, onBack }: { virusCase: VirusCase; onBack: () =>
 
   // Trigger complete when entering finished phase
   useEffect(() => {
-    if (!state || state.phase !== 'finished' || completeCalledRef.current) return;
+    const s = stateRef.current;
+    if (!s || s.phase !== 'finished' || completeCalledRef.current) return;
     completeCalledRef.current = true;
-    const { activeCase, chapters, correctCount } = state;
-    setState(s => s ? { ...s, completing: true } : s);
-    apiService.completeVirusCase(activeCase.id, correctCount, chapters.length)
+    const { activeCase, chapters, correctCount } = s;
+    // Exclude final (narrative-only) chapters from score denominator
+    const scoredTotal = chapters.filter(ch => !ch.is_final).length;
+    setState(prev => prev ? { ...prev, completing: true } : prev);
+    apiService.completeVirusCase(activeCase.id, correctCount, scoredTotal, telegramIdRef.current)
       .then(result => {
-        setState(s => s ? { ...s, gameResult: result, completing: false } : s);
+        setState(prev => prev ? { ...prev, gameResult: result, completing: false } : prev);
       })
       .catch(err => {
         console.error('complete error:', err);
-        setState(s => s ? { ...s, completing: false } : s);
+        setState(prev => prev ? { ...prev, completing: false } : prev);
       });
   }, [state?.phase]);
 
@@ -501,6 +510,8 @@ function GameScreen({ virusCase, onBack }: { virusCase: VirusCase; onBack: () =>
 
   const answerRecord = answers[currentChapter.id];
   const isAnswered = !!answerRecord;
+  const isFinalChapter = !!currentChapter.is_final;
+  const isLastChapter = currentChapterIndex + 1 >= totalChapters;
 
   return (
     <div>
@@ -516,58 +527,72 @@ function GameScreen({ virusCase, onBack }: { virusCase: VirusCase; onBack: () =>
 
       {/* Chapter card */}
       <div style={st.card} className="v-slide">
-        <p style={st.chapterTitle}>{currentChapter.title}</p>
+        <p style={st.chapterTitle}>
+          {isFinalChapter && <span style={{ color: '#f59e0b', marginRight: 6 }}>★ ФИНАЛ</span>}
+          {currentChapter.title}
+        </p>
 
         {/* Narrative */}
         <div style={st.narrativeBox}>
           {currentChapter.narrative_text}
         </div>
 
-        {/* Question */}
-        <p style={st.questionText}>{currentChapter.question_text}</p>
-
-        {/* Options */}
-        <div>
-          {currentChapter.options.map((option, idx) => {
-            const isSelected = answerRecord?.optionId === option.id;
-            const isCorrect = isAnswered && option.id === answerRecord.correct_option_id;
-            const isWrong = isAnswered && isSelected && !answerRecord.is_correct;
-
-            return (
-              <button
-                key={option.id}
-                style={st.optionBtn(isSelected, isCorrect, isWrong)}
-                disabled={isAnswered || submitting}
-                onClick={() => handleSelectOption(option)}
-              >
-                <span style={st.optionLetter(isSelected, isCorrect, isWrong)}>
-                  {isCorrect ? '✓' : isWrong ? '✗' : OPTION_LETTERS[idx] ?? String(idx + 1)}
-                </span>
-                <span>{option.text}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Consequence text after answering */}
-        {isAnswered && (
-          <div style={st.consequenceBox} className="v-fade">
-            <strong>{answerRecord.is_correct ? '✅ Верно! ' : '❌ Неверно. '}</strong>
-            {answerRecord.consequence_text}
-          </div>
-        )}
-
-        {/* Next / Finish button */}
-        {isAnswered && (
+        {/* Final chapter: no question/options, show proceed button directly */}
+        {isFinalChapter ? (
           <div ref={nextBtnRef} style={{ textAlign: 'right' }} className="v-fade">
             <button onClick={handleNextChapter} style={btn('#3b82f6', true)}>
-              {currentChapterIndex + 1 >= totalChapters ? 'Завершить' : 'Следующая глава →'}
+              {isLastChapter ? 'Завершить расследование →' : 'Далее →'}
             </button>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Question */}
+            <p style={st.questionText}>{currentChapter.question_text}</p>
 
-        {submitting && (
-          <p style={{ color: '#9ca3af', fontSize: 13, marginTop: 8 }}>Проверка...</p>
+            {/* Options */}
+            <div>
+              {currentChapter.options.map((option, idx) => {
+                const isSelected = answerRecord?.optionId === option.id;
+                const isCorrect = isAnswered && option.id === answerRecord.correct_option_id;
+                const isWrong = isAnswered && isSelected && !answerRecord.is_correct;
+
+                return (
+                  <button
+                    key={option.id}
+                    style={st.optionBtn(isSelected, isCorrect, isWrong)}
+                    disabled={isAnswered || submitting}
+                    onClick={() => handleSelectOption(option)}
+                  >
+                    <span style={st.optionLetter(isSelected, isCorrect, isWrong)}>
+                      {isCorrect ? '✓' : isWrong ? '✗' : OPTION_LETTERS[idx] ?? String(idx + 1)}
+                    </span>
+                    <span>{option.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Consequence text after answering */}
+            {isAnswered && (
+              <div style={st.consequenceBox} className="v-fade">
+                <strong>{answerRecord.is_correct ? '✅ Верно! ' : '❌ Неверно. '}</strong>
+                {answerRecord.consequence_text}
+              </div>
+            )}
+
+            {/* Next / Finish button */}
+            {isAnswered && (
+              <div ref={nextBtnRef} style={{ textAlign: 'right' }} className="v-fade">
+                <button onClick={handleNextChapter} style={btn('#3b82f6', true)}>
+                  {isLastChapter ? 'Завершить' : 'Следующая глава →'}
+                </button>
+              </div>
+            )}
+
+            {submitting && (
+              <p style={{ color: '#9ca3af', fontSize: 13, marginTop: 8 }}>Проверка...</p>
+            )}
+          </>
         )}
       </div>
     </div>

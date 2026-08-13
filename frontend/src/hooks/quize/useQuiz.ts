@@ -29,6 +29,11 @@ export const useQuiz = (user: { id: number } | null) => {
   >({});
   const [coins, setCoins] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [finishSnapshot, setFinishSnapshot] = useState<{
+    scoredTotal: number;
+    correct: number;
+    earnedCoins: number;
+  } | null>(null);
 
   // Filtered by selected category
   const newQuizzes = useMemo(
@@ -147,6 +152,7 @@ export const useQuiz = (user: { id: number } | null) => {
     setHistory({});
     setCoins(0);
     setIsFinished(false);
+    setFinishSnapshot(null);
   };
 
   // --------------------------
@@ -225,6 +231,10 @@ export const useQuiz = (user: { id: number } | null) => {
     if (!quiz) return;
 
     if (currentQuestionIndex >= totalQuestions - 1) {
+      const openCt = quiz.questions.filter((q) => q.question_type === "open_ended").length;
+      const scoredTotal = totalQuestions - openCt;
+      const correct = Object.values(history).filter((h) => h.isCorrect).length;
+      setFinishSnapshot({ scoredTotal, correct, earnedCoins: coins });
       setIsFinished(true);
       finishQuiz();
       return;
@@ -309,5 +319,6 @@ export const useQuiz = (user: { id: number } | null) => {
     restart,
 
     progress,
+    finishSnapshot,
   };
 };

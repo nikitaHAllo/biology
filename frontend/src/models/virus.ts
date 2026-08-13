@@ -13,7 +13,8 @@ export interface VirusChapter {
   order_index: number;
   title: string;
   narrative_text: string;
-  question_text: string;
+  question_text?: string | null;
+  is_final?: boolean;
   options: VirusChapterOption[];
 }
 

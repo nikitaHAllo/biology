@@ -186,13 +186,14 @@ export interface VirusChapterAttributes {
 	order_index: number;
 	title: string;
 	narrative_text: string;
-	question_text: string;
+	question_text?: string | null;
+	is_final: boolean;
 	created_at?: Date;
 	updated_at?: Date;
 }
 
 interface VirusChapterCreation
-	extends Optional<VirusChapterAttributes, 'id' | 'order_index' | 'created_at' | 'updated_at'> {}
+	extends Optional<VirusChapterAttributes, 'id' | 'order_index' | 'question_text' | 'is_final' | 'created_at' | 'updated_at'> {}
 
 export class VirusChapter extends Model<VirusChapterAttributes, VirusChapterCreation> implements VirusChapterAttributes {
 	public id!: number;
@@ -200,7 +201,8 @@ export class VirusChapter extends Model<VirusChapterAttributes, VirusChapterCrea
 	public order_index!: number;
 	public title!: string;
 	public narrative_text!: string;
-	public question_text!: string;
+	public question_text?: string | null;
+	public is_final!: boolean;
 	public readonly created_at?: Date;
 	public readonly updated_at?: Date;
 }
@@ -212,7 +214,8 @@ VirusChapter.init(
 		order_index: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
 		title: { type: DataTypes.STRING, allowNull: false },
 		narrative_text: { type: DataTypes.TEXT, allowNull: false },
-		question_text: { type: DataTypes.TEXT, allowNull: false },
+		question_text: { type: DataTypes.TEXT, allowNull: true },
+		is_final: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 	},
 	{ sequelize, tableName: 'virus_chapters', underscored: true, timestamps: true, createdAt: 'created_at', updatedAt: 'updated_at' }
 );

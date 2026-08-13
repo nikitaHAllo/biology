@@ -148,18 +148,21 @@ function ChapterForm({
     title: initial?.title ?? '',
     narrative_text: initial?.narrative_text ?? '',
     question_text: initial?.question_text ?? '',
+    is_final: initial?.is_final ?? false,
     order_index: String(initial?.order_index ?? 0),
   });
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!form.title.trim() || !form.narrative_text.trim() || !form.question_text.trim()) return;
+    if (!form.title.trim() || !form.narrative_text.trim()) return;
+    if (!form.is_final && !form.question_text.trim()) return;
     setSaving(true);
     try {
       await onSave({
         title: form.title,
         narrative_text: form.narrative_text,
-        question_text: form.question_text,
+        question_text: form.is_final ? undefined : form.question_text,
+        is_final: form.is_final,
         order_index: Number(form.order_index),
       });
     } finally {
@@ -168,25 +171,59 @@ function ChapterForm({
   };
 
   return (
-    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+    <div style={{ background: form.is_final ? '#fffbeb' : '#eff6ff', border: `1px solid ${form.is_final ? '#fcd34d' : '#bfdbfe'}`, borderRadius: 8, padding: 12, marginBottom: 8 }}>
+      {/* is_final toggle */}
+      <div style={{ marginBottom: 10, padding: '8px 10px', background: form.is_final ? '#fef3c7' : '#f0f9ff', borderRadius: 6, border: `1px solid ${form.is_final ? '#fde68a' : '#bae6fd'}` }}>
+        <label style={{ fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={form.is_final}
+            onChange={e => setForm(f => ({ ...f, is_final: e.target.checked }))}
+          />
+          ★ Финальная глава (без вопроса — только нарратив, завершает игру)
+        </label>
+      </div>
+
       <div style={{ marginBottom: 8 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 3 }}>Название главы *</label>
-        <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={inputSt} placeholder="Глава 1. Первый пациент" />
+        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 3 }}>
+          Название главы *
+        </label>
+        <input
+          value={form.title}
+          onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+          style={inputSt}
+          placeholder={form.is_final ? 'Эпилог. Расследование завершено' : 'Глава 1. Первый пациент'}
+        />
       </div>
       <div style={{ marginBottom: 8 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 3 }}>Нарративный текст * (контекст перед вопросом)</label>
-        <textarea value={form.narrative_text} onChange={e => setForm(f => ({ ...f, narrative_text: e.target.value }))} style={{ ...inputSt, minHeight: 80, resize: 'vertical' }} />
+        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 3 }}>
+          {form.is_final ? 'Финальный нарратив * (заключение истории)' : 'Нарративный текст * (контекст перед вопросом)'}
+        </label>
+        <textarea
+          value={form.narrative_text}
+          onChange={e => setForm(f => ({ ...f, narrative_text: e.target.value }))}
+          style={{ ...inputSt, minHeight: 80, resize: 'vertical' }}
+        />
       </div>
-      <div style={{ marginBottom: 8 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 3 }}>Вопрос *</label>
-        <textarea value={form.question_text} onChange={e => setForm(f => ({ ...f, question_text: e.target.value }))} style={{ ...inputSt, minHeight: 50, resize: 'vertical' }} />
-      </div>
+
+      {/* Question — only for non-final chapters */}
+      {!form.is_final && (
+        <div style={{ marginBottom: 8 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 3 }}>Вопрос *</label>
+          <textarea
+            value={form.question_text}
+            onChange={e => setForm(f => ({ ...f, question_text: e.target.value }))}
+            style={{ ...inputSt, minHeight: 50, resize: 'vertical' }}
+          />
+        </div>
+      )}
+
       <div style={{ marginBottom: 8 }}>
         <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 3 }}>Порядок</label>
         <input type="number" value={form.order_index} onChange={e => setForm(f => ({ ...f, order_index: e.target.value }))} style={{ ...inputSt, width: 80 }} />
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={handleSave} disabled={saving} style={btnSt('#3b82f6')}>{saving ? '...' : 'Сохранить'}</button>
+        <button onClick={handleSave} disabled={saving} style={btnSt(form.is_final ? '#f59e0b' : '#3b82f6')}>{saving ? '...' : 'Сохранить'}</button>
         <button onClick={onCancel} style={btnSt('#6b7280')}>Отмена</button>
       </div>
     </div>
@@ -279,10 +316,16 @@ function ChapterItem({
         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#eff6ff', cursor: 'pointer' }}
         onClick={() => setExpanded(e => !e)}
       >
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8', flex: 1 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: chapter.is_final ? '#92400e' : '#1d4ed8', flex: 1 }}>
           [{chapter.order_index}] {chapter.title}
         </span>
-        <span style={{ fontSize: 12, color: '#6b7280' }}>{(chapter.options ?? []).length} вар.</span>
+        {chapter.is_final ? (
+          <span style={{ background: '#fef3c7', color: '#92400e', borderRadius: 4, padding: '1px 6px', fontSize: 11, fontWeight: 700 }}>
+            ★ ФИНАЛ
+          </span>
+        ) : (
+          <span style={{ fontSize: 12, color: '#6b7280' }}>{(chapter.options ?? []).length} вар.</span>
+        )}
         {hasMultipleCorrect && (
           <span style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 4, padding: '1px 6px', fontSize: 11, fontWeight: 700 }}>
             ⚠ {correctCount} правильных
@@ -311,74 +354,83 @@ function ChapterItem({
 
           {!editing && (
             <>
+              {chapter.is_final && (
+                <div style={{ marginBottom: 10, background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 10px', fontSize: 12, color: '#92400e', fontWeight: 600 }}>
+                  ★ Финальная глава — показывает только нарратив, не считается в счёте
+                </div>
+              )}
               <div style={{ marginBottom: 10 }}>
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', marginBottom: 4 }}>Нарратив</p>
                 <p style={{ fontSize: 13, color: '#374151', background: '#f9fafb', borderRadius: 6, padding: '8px 10px', margin: 0 }}>{chapter.narrative_text}</p>
               </div>
-              <div style={{ marginBottom: 14 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', marginBottom: 4 }}>Вопрос</p>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', background: '#f0f9ff', borderRadius: 6, padding: '8px 10px', margin: 0 }}>{chapter.question_text}</p>
-              </div>
+              {!chapter.is_final && chapter.question_text && (
+                <div style={{ marginBottom: 14 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', marginBottom: 4 }}>Вопрос</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', background: '#f0f9ff', borderRadius: 6, padding: '8px 10px', margin: 0 }}>{chapter.question_text}</p>
+                </div>
+              )}
             </>
           )}
 
-          {/* Options */}
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', margin: 0 }}>
-                Варианты ответа ({(chapter.options ?? []).length})
-              </p>
-              <button onClick={() => setAddingOption(true)} style={btnSt('#8b5cf6', true)}>+ Добавить вариант</button>
-            </div>
-
-            {addingOption && (
-              <OptionForm
-                onSave={async body => { await api.createVirusChapterOption(chapter.id, body); setAddingOption(false); onUpdate(); }}
-                onCancel={() => setAddingOption(false)}
-              />
-            )}
-
-            {(chapter.options ?? []).map((opt, idx) => (
-              <div key={opt.id}>
-                {editingOptionId === opt.id ? (
-                  <OptionForm
-                    initial={opt}
-                    onSave={async body => { await api.updateVirusChapterOption(opt.id, body); setEditingOptionId(null); onUpdate(); }}
-                    onCancel={() => setEditingOptionId(null)}
-                  />
-                ) : (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                    padding: '8px 12px',
-                    background: opt.is_correct ? '#f0fdf4' : '#fdf4ff',
-                    border: `1px solid ${opt.is_correct ? '#bbf7d0' : '#e9d5ff'}`,
-                    borderRadius: 8,
-                    marginBottom: 6,
-                  }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#9ca3af', width: 20, flexShrink: 0 }}>{idx + 1}.</span>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>
-                        {opt.is_correct ? '✅ ' : '○ '}{opt.text}
-                      </p>
-                      {opt.consequence_text && (
-                        <p style={{ margin: '3px 0 0', fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>
-                          → {opt.consequence_text}
-                        </p>
-                      )}
-                    </div>
-                    <button onClick={() => setEditingOptionId(opt.id)} style={smallBtn}>✏️</button>
-                    <button onClick={async () => { await api.deleteVirusChapterOption(opt.id); onUpdate(); }} style={{ ...smallBtn, color: '#ef4444' }}>🗑</button>
-                  </div>
-                )}
+          {/* Options — only for non-final chapters */}
+          {!chapter.is_final && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', margin: 0 }}>
+                  Варианты ответа ({(chapter.options ?? []).length})
+                </p>
+                <button onClick={() => setAddingOption(true)} style={btnSt('#8b5cf6', true)}>+ Добавить вариант</button>
               </div>
-            ))}
 
-            {!(chapter.options ?? []).length && !addingOption && (
-              <p style={{ fontSize: 12, color: '#9ca3af' }}>Вариантов нет. Добавьте хотя бы 2-3.</p>
-            )}
-          </div>
+              {addingOption && (
+                <OptionForm
+                  onSave={async body => { await api.createVirusChapterOption(chapter.id, body); setAddingOption(false); onUpdate(); }}
+                  onCancel={() => setAddingOption(false)}
+                />
+              )}
+
+              {(chapter.options ?? []).map((opt, idx) => (
+                <div key={opt.id}>
+                  {editingOptionId === opt.id ? (
+                    <OptionForm
+                      initial={opt}
+                      onSave={async body => { await api.updateVirusChapterOption(opt.id, body); setEditingOptionId(null); onUpdate(); }}
+                      onCancel={() => setEditingOptionId(null)}
+                    />
+                  ) : (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                      padding: '8px 12px',
+                      background: opt.is_correct ? '#f0fdf4' : '#fdf4ff',
+                      border: `1px solid ${opt.is_correct ? '#bbf7d0' : '#e9d5ff'}`,
+                      borderRadius: 8,
+                      marginBottom: 6,
+                    }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#9ca3af', width: 20, flexShrink: 0 }}>{idx + 1}.</span>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>
+                          {opt.is_correct ? '✅ ' : '○ '}{opt.text}
+                        </p>
+                        {opt.consequence_text && (
+                          <p style={{ margin: '3px 0 0', fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>
+                            → {opt.consequence_text}
+                          </p>
+                        )}
+                      </div>
+                      <button onClick={() => setEditingOptionId(opt.id)} style={smallBtn}>✏️</button>
+                      <button onClick={async () => { await api.deleteVirusChapterOption(opt.id); onUpdate(); }} style={{ ...smallBtn, color: '#ef4444' }}>🗑</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {!(chapter.options ?? []).length && !addingOption && (
+                <p style={{ fontSize: 12, color: '#9ca3af' }}>Вариантов нет. Добавьте хотя бы 2-3.</p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
