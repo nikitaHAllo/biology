@@ -1078,7 +1078,7 @@ class AdminController {
 			}
 			const chapter = await VirusChapter.create({
 				case_id, title, narrative_text,
-				question_text: is_final ? null : question_text,
+				question_text: is_final ? null : (question_text ?? null),
 				is_final: is_final ?? false,
 				order_index: order_index ?? 0,
 			});
