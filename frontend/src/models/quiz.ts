@@ -2,7 +2,7 @@ export interface QuizQuestion {
 	id: number;
 	quiz_id: number;
 	question_text: string;
-	question_type: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended';
+	question_type: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended' | 'text_input';
 	options: QuizOption[];
 	correct_answer_ids: number[];
 	explanation?: string;
@@ -10,6 +10,7 @@ export interface QuizQuestion {
 	order: number;
 	timer_seconds?: number | null;
 	image_url?: string | null;
+	correct_text_answer?: string | null;
 }
 
 export interface QuizCategory {

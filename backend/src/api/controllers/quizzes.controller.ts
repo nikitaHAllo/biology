@@ -274,6 +274,7 @@ class QuizzesController {
 							order: question.order_index,
 							timer_seconds: question.timer_seconds,
 							image_url: question.image_url ?? null,
+							correct_text_answer: question.correct_text_answer ?? null,
 						};
 					}),
 			};

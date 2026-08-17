@@ -149,12 +149,13 @@ export interface AdminQuizQuestion {
   id: number;
   quiz_id: number;
   question_text: string;
-  question_type: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended';
+  question_type: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended' | 'text_input';
   order_index: number;
   points: number;
   timer_seconds: number | null;
   explanation: string | null;
   image_url: string | null;
+  correct_text_answer: string | null;
   options?: AdminQuizOption[];
 }
 
@@ -418,10 +419,10 @@ export const api = {
     req('DELETE', `/quizzes/${id}`),
 
   // Questions
-  createQuestion: (quizId: number, body: { question_text: string; question_type: string; points?: number; timer_seconds?: number | null; explanation?: string; order_index?: number; image_url?: string | null }) =>
+  createQuestion: (quizId: number, body: { question_text: string; question_type: string; points?: number; timer_seconds?: number | null; explanation?: string; order_index?: number; image_url?: string | null; correct_text_answer?: string | null }) =>
     req<{ question: AdminQuizQuestion }>('POST', `/quizzes/${quizId}/questions`, body),
 
-  updateQuestion: (id: number, body: Partial<{ question_text: string; question_type: string; points: number; timer_seconds: number | null; explanation: string | null; order_index: number; image_url: string | null }>) =>
+  updateQuestion: (id: number, body: Partial<{ question_text: string; question_type: string; points: number; timer_seconds: number | null; explanation: string | null; order_index: number; image_url: string | null; correct_text_answer: string | null }>) =>
     req<{ question: AdminQuizQuestion }>('PUT', `/questions/${id}`, body),
 
   deleteQuestion: (id: number) =>

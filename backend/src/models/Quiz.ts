@@ -110,12 +110,13 @@ export interface QuizQuestionAttributes {
 	id: number;
 	quiz_id: number;
 	question_text: string;
-	question_type: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended';
+	question_type: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended' | 'text_input';
 	order_index: number;
 	points: number;
 	timer_seconds?: number | null;
 	explanation?: string | null;
 	image_url?: string | null;
+	correct_text_answer?: string | null;
 	created_at?: Date;
 	updated_at?: Date;
 }
@@ -123,7 +124,7 @@ export interface QuizQuestionAttributes {
 interface QuizQuestionCreationAttributes
 	extends Optional<
 		QuizQuestionAttributes,
-		'id' | 'order_index' | 'points' | 'timer_seconds' | 'explanation' | 'image_url' | 'created_at' | 'updated_at'
+		'id' | 'order_index' | 'points' | 'timer_seconds' | 'explanation' | 'image_url' | 'correct_text_answer' | 'created_at' | 'updated_at'
 	> {}
 
 export class QuizQuestion
@@ -133,12 +134,13 @@ export class QuizQuestion
 	public id!: number;
 	public quiz_id!: number;
 	public question_text!: string;
-	public question_type!: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended';
+	public question_type!: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended' | 'text_input';
 	public order_index!: number;
 	public points!: number;
 	public timer_seconds?: number | null;
 	public explanation?: string | null;
 	public image_url?: string | null;
+	public correct_text_answer?: string | null;
 	public readonly created_at?: Date;
 	public readonly updated_at?: Date;
 }
@@ -163,7 +165,7 @@ QuizQuestion.init(
 			allowNull: false,
 		},
 		question_type: {
-			type: DataTypes.ENUM('single_choice', 'multiple_choice', 'true_false', 'open_ended'),
+			type: DataTypes.ENUM('single_choice', 'multiple_choice', 'true_false', 'open_ended', 'text_input'),
 			allowNull: false,
 		},
 		order_index: {
@@ -186,6 +188,10 @@ QuizQuestion.init(
 		},
 		image_url: {
 			type: DataTypes.STRING(1024),
+			allowNull: true,
+		},
+		correct_text_answer: {
+			type: DataTypes.TEXT,
 			allowNull: true,
 		},
 	},

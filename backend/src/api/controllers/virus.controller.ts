@@ -143,9 +143,9 @@ class VirusController {
 
 			const existing = await VirusResult.findOne({ where: { user_id: user.id, case_id } });
 			let coinsToAdd = 0;
-			const wasCompleted = existing?.is_completed ?? false;
 
 			if (!existing) {
+				// First completion — award coins only if passed
 				coinsToAdd = is_passed ? virusCase.coins_reward : 0;
 				await VirusResult.create({
 					user_id: user.id,
@@ -157,19 +157,11 @@ class VirusController {
 					is_completed: true,
 					completed_at: new Date(),
 				});
-			} else if (!wasCompleted) {
-				coinsToAdd = is_passed ? virusCase.coins_reward : 0;
-				await existing.update({
-					score,
-					clues_used: totalCh,
-					correct_answers: corrAns,
-					coins_earned: coinsToAdd,
-					is_completed: true,
-					completed_at: new Date(),
-				});
 			} else {
-				// Re-attempt: update score/answers but no extra coins
-				await existing.update({ score, clues_used: totalCh, correct_answers: corrAns });
+				// Replay — never award coins, just keep the best score
+				if (score > Number(existing.score)) {
+					await existing.update({ score, clues_used: totalCh, correct_answers: corrAns });
+				}
 			}
 
 			if (coinsToAdd > 0) {

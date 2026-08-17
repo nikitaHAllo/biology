@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import {
 	Loader, Alert, Card, Group, Button, Stack, Text, Badge, ThemeIcon,
-	ScrollArea, Title,
+	ScrollArea, Title, TextInput,
 } from '@mantine/core';
 import {
 	QuizExplanation,
@@ -55,6 +55,8 @@ const QuizPage = () => {
 		toggleOption,
 		handleTimeout,
 		quiz,
+		textAnswer,
+		setTextAnswer,
 	} = useQuiz(user);
 
 	const timer = useTimer({
@@ -68,6 +70,7 @@ const QuizPage = () => {
 	useEffect(() => { if (profile?.coins !== undefined) setUserCoins(profile.coins); }, [profile?.coins]);
 
 	const isOpenEnded = currentQuestion?.question_type === 'open_ended';
+	const isTextInput = currentQuestion?.question_type === 'text_input';
 
 	const [activeTab, setActiveTab] = useState<'new' | 'completed'>('new');
 
@@ -243,6 +246,20 @@ const QuizPage = () => {
 										explanation={currentQuestion.explanation}
 									/>
 								</Card>
+							) : isTextInput ? (
+								<Card withBorder padding='lg'>
+									<Text size='sm' c='dimmed' mb='sm'>
+										{isViewOnly ? 'Правильный ответ' : 'Введите ответ'}
+									</Text>
+									<TextInput
+										value={isViewOnly ? (currentQuestion.correct_text_answer ?? '') : textAnswer}
+										onChange={e => { if (!isViewOnly) setTextAnswer(e.currentTarget.value); }}
+										placeholder='Введите ответ...'
+										disabled={isViewOnly || answerState !== 'idle'}
+										onKeyDown={e => { if (e.key === 'Enter' && answerState === 'idle' && textAnswer.trim()) checkAnswer(); }}
+										autoComplete='off'
+									/>
+								</Card>
 							) : (
 								<Card withBorder padding='lg'>
 									<QuizOptions
@@ -254,10 +271,20 @@ const QuizPage = () => {
 								</Card>
 							)}
 
-							{!isViewOnly && !isOpenEnded && answerState !== 'idle' && currentQuestion.explanation && (
+							{!isViewOnly && !isOpenEnded && !isTextInput && answerState !== 'idle' && currentQuestion.explanation && (
 								<QuizExplanation
 									state={answerState}
 									text={currentQuestion.explanation}
+								/>
+							)}
+
+							{!isViewOnly && isTextInput && answerState !== 'idle' && (
+								<QuizExplanation
+									state={answerState}
+									text={answerState === 'correct'
+										? (currentQuestion.explanation ?? 'Правильно!')
+										: `Неверно. Правильный ответ: ${currentQuestion.correct_text_answer ?? '—'}${currentQuestion.explanation ? '. ' + currentQuestion.explanation : ''}`
+									}
 								/>
 							)}
 
@@ -299,7 +326,9 @@ const QuizPage = () => {
 										</Group>
 									) : (
 										<QuizFooter
-											canCheck={selectedOptions.length > 0 && answerState === 'idle'}
+											canCheck={isTextInput
+												? textAnswer.trim().length > 0 && answerState === 'idle'
+												: selectedOptions.length > 0 && answerState === 'idle'}
 											canNext={answerState !== 'idle'}
 											onCheck={() => {
 												checkAnswer();

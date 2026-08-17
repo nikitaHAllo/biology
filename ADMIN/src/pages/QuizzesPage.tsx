@@ -12,6 +12,7 @@ const QUESTION_TYPES = [
   { value: 'multiple_choice', label: 'Несколько ответов' },
   { value: 'true_false', label: 'Верно/Неверно' },
   { value: 'open_ended', label: 'Развёрнутый ответ (часть 2 ЕГЭ)' },
+  { value: 'text_input', label: 'Текстовый ввод (автопроверка)' },
 ] as const;
 
 type Difficulty = typeof DIFFICULTIES[number]['value'];
@@ -52,6 +53,7 @@ function emptyQuestionForm() {
     explanation: '',
     order_index: 0,
     image_url: '',
+    correct_text_answer: '',
   };
 }
 
@@ -302,6 +304,7 @@ export default function QuizzesPage() {
         explanation: questionForm.explanation || undefined,
         order_index: Number(questionForm.order_index),
         image_url: questionForm.image_url || null,
+        correct_text_answer: questionForm.question_type === 'text_input' ? (questionForm.correct_text_answer || null) : null,
       });
       setQuestionForm(emptyQuestionForm());
       setAddingQuestionFor(null);
@@ -326,6 +329,7 @@ export default function QuizzesPage() {
       explanation: q.explanation ?? '',
       order_index: q.order_index,
       image_url: q.image_url ?? '',
+      correct_text_answer: q.correct_text_answer ?? '',
     });
   }
 
@@ -342,6 +346,7 @@ export default function QuizzesPage() {
         explanation: editQuestionForm.explanation || null,
         order_index: Number(editQuestionForm.order_index),
         image_url: editQuestionForm.image_url || null,
+        correct_text_answer: editQuestionForm.question_type === 'text_input' ? (editQuestionForm.correct_text_answer || null) : null,
       });
       setEditingQuestionId(null);
       await loadQuizDetails(quizId);
@@ -620,9 +625,15 @@ export default function QuizzesPage() {
                                 {q.timer_seconds}с
                               </span>
                             )}
-                            <span style={{ marginLeft: 6, fontSize: 12, color: '#aaa' }}>
-                              {(q.options?.length ?? 0)} вариантов
-                            </span>
+                            {q.question_type === 'text_input' ? (
+                              <span style={{ marginLeft: 6, fontSize: 12, color: '#2980b9' }}>
+                                ✎ «{q.correct_text_answer ?? '—'}»
+                              </span>
+                            ) : (
+                              <span style={{ marginLeft: 6, fontSize: 12, color: '#aaa' }}>
+                                {(q.options?.length ?? 0)} вариантов
+                              </span>
+                            )}
                           </span>
                         </span>
                         <span style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -663,6 +674,15 @@ export default function QuizzesPage() {
                             <p style={{ fontSize: 12, color: '#666', margin: '0 0 10px', fontStyle: 'italic' }}>
                               Пояснение: {q.explanation}
                             </p>
+                          )}
+                          {q.question_type === 'text_input' && (
+                            <div style={{ background: '#e8f4fd', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 13 }}>
+                              <span style={{ color: '#666' }}>Эталонный ответ: </span>
+                              <strong style={{ color: '#2980b9' }}>{q.correct_text_answer ?? '—'}</strong>
+                              <span style={{ color: '#999', fontSize: 11, marginLeft: 8 }}>
+                                (сравнение без учёта регистра)
+                              </span>
+                            </div>
                           )}
 
                           {(q.options ?? []).sort((a, b) => a.order_index - b.order_index).map(opt => (
@@ -712,8 +732,8 @@ export default function QuizzesPage() {
                             </div>
                           ))}
 
-                          {/* Add option form */}
-                          {addingOptionFor === q.id ? (
+                          {/* Add option form — hidden for text_input */}
+                          {q.question_type !== 'text_input' && addingOptionFor === q.id ? (
                             <form onSubmit={e => handleCreateOption(e, q.id, quiz.id)} style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center' }}>
                               <input
                                 value={optionForm.option_text}
@@ -738,7 +758,7 @@ export default function QuizzesPage() {
                                 Отмена
                               </button>
                             </form>
-                          ) : (
+                          ) : q.question_type !== 'text_input' ? (
                             <button
                               className="btn btn-sm"
                               style={{ marginTop: 6, background: '#f0f0f0', color: '#444' }}
@@ -746,7 +766,7 @@ export default function QuizzesPage() {
                             >
                               + Вариант ответа
                             </button>
-                          )}
+                          ) : null}
                         </div>
                       )}
                     </div>
@@ -914,6 +934,21 @@ function QuestionFormFields({ form, setForm }: { form: QuestionForm; setForm: Re
           {QUESTION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </label>
+      {form.question_type === 'text_input' && (
+        <label style={{ flex: '2 1 240px' }}>
+          Эталонный ответ * (ученик должен ввести это)
+          <input
+            value={form.correct_text_answer}
+            onChange={e => setForm(f => ({ ...f, correct_text_answer: e.target.value }))}
+            placeholder="Правильный ответ для автопроверки"
+            required
+            style={{ fontWeight: 600, borderColor: '#2980b9' }}
+          />
+          <span style={{ fontSize: 11, color: '#666', marginTop: 2, display: 'block' }}>
+            Сравнение без учёта регистра и лишних пробелов
+          </span>
+        </label>
+      )}
       <label style={{ flex: '0 1 70px' }}>
         Порядок
         <input

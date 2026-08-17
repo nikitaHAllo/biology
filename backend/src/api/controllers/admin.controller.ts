@@ -533,9 +533,9 @@ class AdminController {
 	async createQuestion(req: Request, res: Response) {
 		try {
 			const quiz_id = Number(req.params.quizId);
-			const { question_text, question_type, points, timer_seconds, explanation, order_index, image_url } = req.body as {
-				question_text?: string; question_type?: 'single_choice' | 'multiple_choice' | 'true_false';
-				points?: number; timer_seconds?: number; explanation?: string; order_index?: number; image_url?: string;
+			const { question_text, question_type, points, timer_seconds, explanation, order_index, image_url, correct_text_answer } = req.body as {
+				question_text?: string; question_type?: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended' | 'text_input';
+				points?: number; timer_seconds?: number; explanation?: string; order_index?: number; image_url?: string; correct_text_answer?: string;
 			};
 			if (!question_text || !question_type) {
 				return res.status(400).json({ success: false, message: 'question_text и question_type обязательны' });
@@ -549,6 +549,7 @@ class AdminController {
 				explanation: explanation ?? null,
 				order_index: order_index ?? 0,
 				image_url: image_url ?? null,
+				correct_text_answer: correct_text_answer ?? null,
 			});
 			await this._recalcQuizTotals(quiz_id);
 			return res.status(201).json({ success: true, data: { question } });
@@ -561,9 +562,9 @@ class AdminController {
 	async updateQuestion(req: Request, res: Response) {
 		try {
 			const id = Number(req.params.id);
-			const { question_text, question_type, points, timer_seconds, explanation, order_index, image_url } = req.body as {
-				question_text?: string; question_type?: 'single_choice' | 'multiple_choice' | 'true_false';
-				points?: number; timer_seconds?: number | null; explanation?: string | null; order_index?: number; image_url?: string | null;
+			const { question_text, question_type, points, timer_seconds, explanation, order_index, image_url, correct_text_answer } = req.body as {
+				question_text?: string; question_type?: 'single_choice' | 'multiple_choice' | 'true_false' | 'open_ended' | 'text_input';
+				points?: number; timer_seconds?: number | null; explanation?: string | null; order_index?: number; image_url?: string | null; correct_text_answer?: string | null;
 			};
 			const question = await QuizQuestion.findByPk(id);
 			if (!question) return res.status(404).json({ success: false, message: 'Вопрос не найден' });
@@ -575,6 +576,7 @@ class AdminController {
 				...(explanation !== undefined && { explanation }),
 				...(order_index !== undefined && { order_index }),
 				...(image_url !== undefined && { image_url }),
+				...(correct_text_answer !== undefined && { correct_text_answer }),
 			});
 			await this._recalcQuizTotals(question.quiz_id);
 			return res.json({ success: true, data: { question } });

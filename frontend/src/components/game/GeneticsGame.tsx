@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { apiService } from "../../api";
+import { useTelegram } from "../../hooks";
 import type {
   GeneticScenario,
   GeneticStep,
@@ -48,6 +49,12 @@ interface PlayState {
 
 // ── Root component ────────────────────────────────────────────────────────────
 export const GeneticsGame: React.FC = () => {
+  const { user: tgUser } = useTelegram();
+  const telegramIdRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (tgUser?.id) telegramIdRef.current = Number(tgUser.id);
+  }, [tgUser]);
+
   const [screen, setScreen] = useState<Screen>("list");
   const [scenarios, setScenarios] = useState<GeneticScenario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +95,7 @@ export const GeneticsGame: React.FC = () => {
   async function loadScenarios() {
     setLoading(true);
     try {
-      const data = await apiService.getGeneticScenarios();
+      const data = await apiService.getGeneticScenarios(telegramIdRef.current);
       setScenarios(data.scenarios);
     } catch {
       // silent
@@ -175,7 +182,7 @@ export const GeneticsGame: React.FC = () => {
     setResultData({ score, coins: 0, title: scenario.title });
     setScreen("result");
     try {
-      const res = await apiService.completeGeneticScenario(scenario.id, score);
+      const res = await apiService.completeGeneticScenario(scenario.id, score, telegramIdRef.current);
       setResultData((d) => (d ? { ...d, coins: res.coins_earned } : d));
       await loadScenarios();
     } catch {
@@ -341,7 +348,7 @@ const PlayScreen: React.FC<{
   const isLast = play.currentIndex === play.steps.length - 1;
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 0 40px" }}>
+    <div style={{ maxWidth: 640, margin: "0 auto", height: "100vh", overflowY: "auto", display: "flex", flexDirection: "column" }}>
       {/* Header */}
       <div
         style={{
@@ -354,6 +361,7 @@ const PlayScreen: React.FC<{
           display: "flex",
           alignItems: "center",
           gap: 12,
+          flexShrink: 0,
         }}
       >
         <button
@@ -411,7 +419,7 @@ const PlayScreen: React.FC<{
       </div>
 
       {/* Steps */}
-      <div style={{ padding: "20px 16px" }}>
+      <div style={{ padding: "20px 16px 48px" }}>
         {visibleSteps.map((step, idx) => {
           const isActive = idx === play.currentIndex;
           const isDone = idx < play.currentIndex;
@@ -504,7 +512,7 @@ const StepCard: React.FC<{
         }}
       >
         <span style={{ fontSize: 20 }}>{STEP_ICON[step.step_type]}</span>
-        <span style={{ fontWeight: 700, fontSize: 15, flex: 1 }}>
+        <span style={{ fontWeight: 700, fontSize: 15, flex: 1, color: "#111" }}>
           {step.title}
         </span>
         {step.step_type === "question" && step.points > 0 && (
@@ -533,6 +541,7 @@ const StepCard: React.FC<{
             fontSize: 15,
             lineHeight: 1.6,
             whiteSpace: "pre-wrap",
+            color: "#111",
           }}
         >
           {step.content}

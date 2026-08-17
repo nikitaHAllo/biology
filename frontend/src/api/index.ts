@@ -456,8 +456,9 @@ class ApiService {
   }
 
   // ── Genetics ────────────────────────────────────────────────────────────
-  async getGeneticScenarios(): Promise<{ scenarios: GeneticScenario[] }> {
-    const response = await this.api.get("/genetics/scenarios");
+  async getGeneticScenarios(telegramId?: number): Promise<{ scenarios: GeneticScenario[] }> {
+    const params = telegramId ? { telegramId } : {};
+    const response = await this.api.get("/genetics/scenarios", { params });
     return response.data.data;
   }
 
@@ -469,9 +470,11 @@ class ApiService {
   async completeGeneticScenario(
     id: number,
     score: number,
+    telegramId?: number,
   ): Promise<{ coins_earned: number; score: number }> {
     const response = await this.api.post(`/genetics/scenarios/${id}/complete`, {
       score,
+      ...(telegramId && { telegramId }),
     });
     return response.data.data;
   }

@@ -29,6 +29,7 @@ export const useQuiz = (user: { id: number } | null) => {
   >({});
   const [coins, setCoins] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [textAnswer, setTextAnswer] = useState("");
   const [finishSnapshot, setFinishSnapshot] = useState<{
     scoredTotal: number;
     correct: number;
@@ -153,6 +154,7 @@ export const useQuiz = (user: { id: number } | null) => {
     setCoins(0);
     setIsFinished(false);
     setFinishSnapshot(null);
+    setTextAnswer("");
   };
 
   // --------------------------
@@ -178,16 +180,35 @@ export const useQuiz = (user: { id: number } | null) => {
     return a.length === b.length && a.every((v, i) => v === b[i]);
   };
 
-  const checkAnswer = () => {
-    if (!currentQuestion || selectedOptions.length === 0) return;
+  const normalizeText = (s: string) =>
+    s.trim().toLowerCase().replace(/\s+/g, " ");
 
+  const checkAnswer = () => {
+    if (!currentQuestion) return;
+
+    if (currentQuestion.question_type === "text_input") {
+      if (!textAnswer.trim()) return;
+      const isCorrect =
+        !!currentQuestion.correct_text_answer &&
+        normalizeText(textAnswer) ===
+          normalizeText(currentQuestion.correct_text_answer);
+      setAnswerState(isCorrect ? "correct" : "incorrect");
+      setHistory((prev) => ({
+        ...prev,
+        [currentQuestion.id]: { selected: [], isCorrect },
+      }));
+      if (isCorrect) setCoins((c) => c + (currentQuestion.points || 0));
+      return;
+    }
+
+    if (selectedOptions.length === 0) return;
     const isCorrect = evaluateAnswer(currentQuestion, selectedOptions);
     setAnswerState(isCorrect ? "correct" : "incorrect");
     setHistory((prev) => ({
       ...prev,
       [currentQuestion.id]: { selected: selectedOptions, isCorrect },
     }));
-    if (isCorrect) setCoins((c) => c + currentQuestion.points || 0);
+    if (isCorrect) setCoins((c) => c + (currentQuestion.points || 0));
   };
 
   const handleTimeout = () => {
@@ -243,6 +264,7 @@ export const useQuiz = (user: { id: number } | null) => {
     setCurrentQuestionIndex((i) => i + 1);
     setSelectedOptions([]);
     setAnswerState("idle");
+    setTextAnswer("");
   };
 
   const prevQuestion = () => {
@@ -320,5 +342,7 @@ export const useQuiz = (user: { id: number } | null) => {
 
     progress,
     finishSnapshot,
+    textAnswer,
+    setTextAnswer,
   };
 };
