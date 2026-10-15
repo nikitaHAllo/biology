@@ -182,7 +182,11 @@ export const GeneticsGame: React.FC = () => {
     setResultData({ score, coins: 0, title: scenario.title });
     setScreen("result");
     try {
-      const res = await apiService.completeGeneticScenario(scenario.id, score, telegramIdRef.current);
+      const res = await apiService.completeGeneticScenario(
+        scenario.id,
+        score,
+        telegramIdRef.current,
+      );
       setResultData((d) => (d ? { ...d, coins: res.coins_earned } : d));
       await loadScenarios();
     } catch {
@@ -236,7 +240,22 @@ const ScenarioList: React.FC<{
   loading: boolean;
   onSelect: (id: number) => void;
 }> = ({ scenarios, loading, onSelect }) => (
-  <div style={{ padding: "20px 16px", maxWidth: 600, margin: "0 auto" }}>
+  <div
+    style={{
+      width: "100%",
+      maxWidth: 600,
+      height: "100vh",
+      maxHeight: "100dvh",
+      boxSizing: "border-box",
+      margin: "0 auto",
+      padding: "20px 16px",
+      overflowY: "scroll",
+      overflowX: "hidden",
+      WebkitOverflowScrolling: "touch",
+      overscrollBehaviorY: "contain",
+      touchAction: "pan-y",
+    }}
+  >
     <h1 style={{ margin: "0 0 6px", fontSize: 24 }}>
       🧬 Генетический калькулятор
     </h1>
@@ -348,7 +367,16 @@ const PlayScreen: React.FC<{
   const isLast = play.currentIndex === play.steps.length - 1;
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", height: "100vh", overflowY: "auto", display: "flex", flexDirection: "column" }}>
+    <div
+      style={{
+        maxWidth: 640,
+        margin: "0 auto",
+        height: "100vh",
+        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {/* Header */}
       <div
         style={{
